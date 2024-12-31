@@ -92,10 +92,6 @@ std::vector<Fighter> enemies = {
     Fighter(glm::vec3(650.0f, 54.0f, -70.0f), -camera.Front, 0.0f, camera.Yaw, camera.Pitch, 10.0f, 1)
 };
 
-// Timing
-float deltaTime = 0.0f;
-float lastFrame = 0.0f;
-
 // Vertex data
 // VBO (Vertex Buffer Object): Stores vertex data.
 // VAO (Vertex Array Object): Stores the configuration of vertex attributes.
@@ -215,11 +211,6 @@ int main() {
     // Render loop
     while (!glfwWindowShouldClose(window))
     {
-        // Per-frame time logic
-        float currentFrame = glfwGetTime();
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
-
         processInput();
         renderScene();
         if(gameState == 0){
@@ -788,7 +779,6 @@ int loadText(){
 bool checkStart() {
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
         animacaoSaida();
-        gameState = 1;
         return true;
     }
     return false;
@@ -819,6 +809,7 @@ void animacaoSaida(){
         glfwPollEvents();
     }
     fighter_player.position.y = endY;
+    gameState = 1;
 }
 
 /**
@@ -949,7 +940,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 
     // Smoothly rotate the fighter based on the camera's yaw
     const float rotationSpeed = 5.0f;
-    fighter_player.rotation -= xoffset * rotationSpeed * deltaTime;
+    fighter_player.rotation -= xoffset * rotationSpeed * 0.05;
     if (fighter_player.rotation > 45.0f) {
         fighter_player.rotation = 45.0f;
     } else if (fighter_player.rotation < -45.0f) {
