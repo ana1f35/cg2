@@ -32,7 +32,7 @@ void animacaoAterragem(glm::vec3 ponto);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput();
-void RenderText(std::string text, float x, float y, float scale, glm::vec3 color);
+void RenderText(std::string text, float x, float y, float scale, glm::vec3 color, bool useFirstFont);
 
 // Variáveis globais
 unsigned int SCR_WIDTH = 800;
@@ -133,8 +133,9 @@ struct Character {
     glm::ivec2   Bearing;   // Offset from baseline to left/top of glyph
     unsigned int Advance;   // Horizontal offset to advance to next glyph
 };
-std::map<GLchar, Character> Characters;
+std::map<GLchar, Character> Characters, Characters2;
 unsigned int VAOt, VBOt;
+glm::vec3 textColor = glm::vec3(255.0f / 255.0f, 232.0f / 255.0f, 31.0f / 255.0f);
 
 /**
  * @brief A função principal inicializa e configura o GLFW, cria uma janela em fullscreen,
@@ -232,12 +233,18 @@ int main() {
         // Render scene
         renderScene();
 
-        const std::string iniciar = "Para comecar aperte ESPACO";
+        const std::string titulo = "- Space Conflict -";
+        const std::string iniciar = "Press SPACE To Start";
+        const std::string titulo = "- Space Conflict -";
         if(estacionado == 1){
+            float textWidth2 = titulo.length() * 42.0f; 
+            RenderText(titulo, (SCR_WIDTH - textWidth2) / 2.0f, SCR_HEIGHT / 2.0f + 50.0f, 1.0f, textColor, false);
             float textWidth = iniciar.length() * 25.0f; 
-            RenderText(iniciar, (SCR_WIDTH - textWidth) / 2.0f, SCR_HEIGHT / 2.0f, 1.0f, glm::vec3(1.0f, 1.0f, 1.0f));
+            RenderText(iniciar, (SCR_WIDTH - textWidth) / 2.0f, SCR_HEIGHT / 2.0f - 50.0f, 1.0f, textColor, true);
         }
-        // RenderText("(C) LearnOpenGL.com", 540.0f, 570.0f, 0.5f, glm::vec3(0.3, 0.7f, 0.9f));
+        else{
+            
+        }
 
         // Swap buffers and poll IO events
         glfwSwapBuffers(window);
@@ -621,23 +628,24 @@ int loadText(){
         return -1;
     }
 
-	// find path to font
-    std::string font_name = "fonts/ARIAL.TTF";
-    if (font_name.empty())
+    // find paths to fonts
+    std::string font_name1 = "fonts/News Gothic Bold.ttf";
+    std::string font_name2 = "fonts/Starjedi.ttf";
+    if (font_name1.empty() || font_name2.empty())
     {
         std::cout << "ERROR::FREETYPE: Failed to load font_name" << std::endl;
         return -1;
     }
-	
-	// load font as face
-    FT_Face face;
-    if (FT_New_Face(ft, font_name.c_str(), 0, &face)) {
+
+    // Load first font
+    FT_Face face1;
+    if (FT_New_Face(ft, font_name1.c_str(), 0, &face1)) {
         std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
         return -1;
     }
     else {
         // set size to load glyphs as
-        FT_Set_Pixel_Sizes(face, 0, 48);
+        FT_Set_Pixel_Sizes(face1, 0, 48);
 
         // disable byte-alignment restriction
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -646,7 +654,7 @@ int loadText(){
         for (unsigned char c = 0; c < 128; c++)
         {
             // Load character glyph 
-            if (FT_Load_Char(face, c, FT_LOAD_RENDER))
+            if (FT_Load_Char(face1, c, FT_LOAD_RENDER))
             {
                 std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
                 continue;
@@ -659,12 +667,12 @@ int loadText(){
                 GL_TEXTURE_2D,
                 0,
                 GL_RED,
-                face->glyph->bitmap.width,
-                face->glyph->bitmap.rows,
+                face1->glyph->bitmap.width,
+                face1->glyph->bitmap.rows,
                 0,
                 GL_RED,
                 GL_UNSIGNED_BYTE,
-                face->glyph->bitmap.buffer
+                face1->glyph->bitmap.buffer
             );
             // set texture options
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -674,18 +682,72 @@ int loadText(){
             // now store character for later use
             Character character = {
                 texture,
-                glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
-                glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
-                static_cast<unsigned int>(face->glyph->advance.x)
+                glm::ivec2(face1->glyph->bitmap.width, face1->glyph->bitmap.rows),
+                glm::ivec2(face1->glyph->bitmap_left, face1->glyph->bitmap_top),
+                static_cast<unsigned int>(face1->glyph->advance.x)
             };
             Characters.insert(std::pair<char, Character>(c, character));
         }
         glBindTexture(GL_TEXTURE_2D, 0);
     }
-    // destroy FreeType once we're finished
-    FT_Done_Face(face);
-    FT_Done_FreeType(ft);
+    FT_Done_Face(face1);
 
+    // Load second font
+    FT_Face face2;
+    if (FT_New_Face(ft, font_name2.c_str(), 0, &face2)) {
+        std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
+        return -1;
+    }
+    else {
+        // set size to load glyphs as
+        FT_Set_Pixel_Sizes(face2, 0, 72);
+
+        // disable byte-alignment restriction
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+        // load first 128 characters of ASCII set
+        for (unsigned char c = 0; c < 128; c++)
+        {
+            // Load character glyph 
+            if (FT_Load_Char(face2, c, FT_LOAD_RENDER))
+            {
+                std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
+                continue;
+            }
+            // generate texture
+            unsigned int texture;
+            glGenTextures(1, &texture);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexImage2D(
+                GL_TEXTURE_2D,
+                0,
+                GL_RED,
+                face2->glyph->bitmap.width,
+                face2->glyph->bitmap.rows,
+                0,
+                GL_RED,
+                GL_UNSIGNED_BYTE,
+                face2->glyph->bitmap.buffer
+            );
+            // set texture options
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            // now store character for later use
+            Character character = {
+                texture,
+                glm::ivec2(face2->glyph->bitmap.width, face2->glyph->bitmap.rows),
+                glm::ivec2(face2->glyph->bitmap_left, face2->glyph->bitmap_top),
+                static_cast<unsigned int>(face2->glyph->advance.x)
+            };
+            Characters2.insert(std::pair<char, Character>(c, character));
+        }
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+    FT_Done_Face(face2);
+
+    FT_Done_FreeType(ft);
     
     // configure VAO/VBO for texture quads
     // -----------------------------------
@@ -1127,8 +1189,7 @@ void renderScene() {
     
     glDepthFunc(GL_LESS); // Restore depth function
 }
-
-void RenderText(std::string text, float x, float y, float scale, glm::vec3 color)
+void RenderText(std::string text, float x, float y, float scale, glm::vec3 color, bool useFirstFont = true)
 {
     // activate corresponding render state	
     glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(SCR_WIDTH), 0.0f, static_cast<float>(SCR_HEIGHT));
@@ -1138,11 +1199,14 @@ void RenderText(std::string text, float x, float y, float scale, glm::vec3 color
     glActiveTexture(GL_TEXTURE0); 
     glBindVertexArray(VAOt);
 
+    // Choose the font to use
+    std::map<GLchar, Character>& fontCharacters = useFirstFont ? Characters : Characters2; // Modify this line to use the second font's Characters map
+
     // iterate through all characters
     std::string::const_iterator c;
     for (c = text.begin(); c != text.end(); c++) 
     {
-        Character ch = Characters[*c];
+        Character ch = fontCharacters[*c];
 
         float xpos = x + ch.Bearing.x * scale;
         float ypos = y - (ch.Size.y - ch.Bearing.y) * scale;
