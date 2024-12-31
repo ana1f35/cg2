@@ -19,22 +19,23 @@
 int loadModel(const std::string& filePath, std::vector<glm::vec3>& vertices, std::vector<glm::vec3>& normals, std::vector<glm::vec2>& texCoords, unsigned int& VAO, unsigned int& VBO, unsigned int& NBO, unsigned int& TBO, bool centerModel);
 unsigned int loadCubemap(std::vector<std::string> faces);
 void setupSkybox();
-void renderScene(Shader& lightingShader);
-void renderScene(Shader& lightingShader, Shader& lightingCubeShader);
-bool checkLanding(Shader& lightingShader, Shader& lightingCubeShader);
-bool checkStart(Shader& lightingShader, Shader& lightingCubeShader);
-void animacaoSaida(Shader& lightingShader, Shader& lightingCubeShader);
-void animacaoAterragem(Shader& lightingShader, Shader& lightingCubeShader, glm::vec3 ponto);
+void loadLuz();
+void renderScene();
+bool checkLanding();
+bool checkStart();
+void animacaoSaida();
+void animacaoAterragem(glm::vec3 ponto);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput();
-void loadLuz();
 
 // Variáveis globais
 unsigned int SCR_WIDTH = 800;
 unsigned int SCR_HEIGHT = 600;
 GLFWwindow* window;
 Shader* skyboxShader;
+Shader* lightingShader;
+Shader* lightingCubeShader;
 
 unsigned int CameraMode = 0;
 
@@ -171,11 +172,6 @@ int main() {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE); 
 
-    
-    // Build and compile shaders
-    Shader lightingShader("shaders/light.vs", "shaders/light.fs");
-    Shader lightingCubeShader("shaders/lamp.vs", "shaders/lamp.fs");
-
     if (loadModel("models/hangar/hangar.obj", vertices, normals, texCoords, VAO, VBO, NBO, TBO, false) == -1)
         return -1;
     if(loadModel("models/tie/tie.obj", vertices2, normals2, texCoords2, VAO2, VBO2, NBO2, TBO2, true) == -1)
@@ -184,6 +180,9 @@ int main() {
         return -1;
     loadLuz();
 
+    // Build and compile shaders
+    lightingShader = new Shader("shaders/light.vs", "shaders/light.fs");
+    lightingCubeShader = new Shader("shaders/lamp.vs", "shaders/lamp.fs");
     // Create skybox shader
     skyboxShader = new Shader("shaders/skybox.vs", "shaders/skybox.fs");
     
@@ -206,12 +205,12 @@ int main() {
         // Process input
         processInput();
         // Verificar se está perto de um ponto de aterragem
-        if(checkLanding(lightingShader, lightingCubeShader));
+        if(checkLanding());
         // Se não aterrou, então verificar a partida
         else
-            checkStart(lightingShader, lightingCubeShader);
+            checkStart();
         // Render scene
-        renderScene(lightingShader, lightingCubeShader);
+        renderScene();
 
         // Swap buffers and poll IO events
         glfwSwapBuffers(window);
@@ -589,12 +588,12 @@ void loadLuz(){
  * @param lightingShader Referência ao shader usado para efeitos de iluminação.
  * @return bool - true se tiver sido realizada uma aterragem, ou false caso contrário.
  */
-bool checkLanding(Shader& lightingShader, Shader& lightingCubeShader) {
+bool checkLanding() {
     for (glm::vec3 ponto : pontosAterragem) {
         float distance = glm::distance(fighter_player.position, ponto);
         if (estacionado == 0 && distance < 20.0f) {
             if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-                animacaoAterragem(lightingShader, lightingCubeShader, ponto);
+                animacaoAterragem(ponto);
                 camera.Front.x = -camera.Front.x;
                 fighter_player.front.x = camera.Front.x;
                 return true;
@@ -610,10 +609,10 @@ bool checkLanding(Shader& lightingShader, Shader& lightingCubeShader) {
  * @param lightingShader Referência ao shader usado para efeitos de iluminação.
  * @return bool - true se tiver sido realizada a partida, ou false caso contrário.
  */
-bool checkStart(Shader& lightingShader, Shader& lightingCubeShader) {
+bool checkStart() {
     if(estacionado != 0){
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
-            animacaoSaida(lightingShader, lightingCubeShader);
+            animacaoSaida();
             return true;
         }
     }
@@ -626,7 +625,7 @@ bool checkStart(Shader& lightingShader, Shader& lightingCubeShader) {
  * 
  * @param lightingShader Referência ao shader usado para iluminação na cena.
  */
-void animacaoSaida(Shader& lightingShader, Shader& lightingCubeShader){
+void animacaoSaida(){
     float startY = fighter_player.position.y;
     float endY = 20.0f;
     float duration = 2.0f; // duration in seconds
@@ -638,7 +637,7 @@ void animacaoSaida(Shader& lightingShader, Shader& lightingCubeShader){
         fighter_player.position.y = glm::mix(startY, endY, t);
         
         // Render scene
-        renderScene(lightingShader, lightingCubeShader);
+        renderScene();
 
         // Swap buffers and poll IO events
         glfwSwapBuffers(window);
@@ -656,7 +655,7 @@ void animacaoSaida(Shader& lightingShader, Shader& lightingCubeShader){
  * @param lightingShader Referência ao shader usado para iluminação na cena.
  * @param ponto O ponto de aterragem alvo.
  */
-void animacaoAterragem(Shader& lightingShader, Shader& lightingCubeShader, glm::vec3 ponto) {
+void animacaoAterragem(glm::vec3 ponto) {
     estacionado = 1;
 
     float endDirectionY = 0.0f;
@@ -667,7 +666,7 @@ void animacaoAterragem(Shader& lightingShader, Shader& lightingCubeShader, glm::
         fighter_player.directionY = glm::mix(fighter_player.directionY, endDirectionY, t);
         fighter_player.rotation = glm::mix(fighter_player.rotation, endRotation, t);
        
-        renderScene(lightingShader, lightingCubeShader);
+        renderScene();
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -682,7 +681,7 @@ void animacaoAterragem(Shader& lightingShader, Shader& lightingCubeShader, glm::
         float t = deltaTime * 0.5f;
         fighter_player.directionX = glm::mix(fighter_player.directionX, endDirectionX, t);
       
-        renderScene(lightingShader, lightingCubeShader);
+        renderScene();
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -692,7 +691,7 @@ void animacaoAterragem(Shader& lightingShader, Shader& lightingCubeShader, glm::
         float t = deltaTime * 1.0f;
         fighter_player.position = glm::mix(fighter_player.position, ponto, t);
 
-        renderScene(lightingShader, lightingCubeShader);
+        renderScene();
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -831,7 +830,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
  * 
  * @param lightingShader Referência ao programa de shader usado para iluminação.
  */
-void renderScene(Shader& lightingShader, Shader& lightingCubeShader) {
+void renderScene() {
     // Clear the screen
     glClearColor(0.01f, 0.0f, 0.02f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -847,64 +846,64 @@ void renderScene(Shader& lightingShader, Shader& lightingCubeShader) {
 
     glm::mat4 view = camera.GetViewMatrix();
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
-    lightingShader.use();
+    lightingShader->use();
     // lightingShader.setInt("material.diffuse", 0);
     // lightingShader.setInt("material.specular", 1);
-    lightingShader.setMat4("projection", projection);
-    lightingShader.setMat4("view", view);
-    lightingShader.setVec3("viewPos", camera.Position);
+    lightingShader->setMat4("projection", projection);
+    lightingShader->setMat4("view", view);
+    lightingShader->setVec3("viewPos", camera.Position);
 
     // directional light
-    lightingShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
-    lightingShader.setVec3("dirLight.ambient", starLightColor * glm::vec3(0.05f));
-    lightingShader.setVec3("dirLight.diffuse", starLightColor * glm::vec3(0.5f));
-    lightingShader.setVec3("dirLight.specular", 0.7f, 0.7f, 0.7f);
+    lightingShader->setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
+    lightingShader->setVec3("dirLight.ambient", starLightColor * glm::vec3(0.05f));
+    lightingShader->setVec3("dirLight.diffuse", starLightColor * glm::vec3(0.5f));
+    lightingShader->setVec3("dirLight.specular", 0.7f, 0.7f, 0.7f);
 
     // point light 1
-    lightingShader.setVec3("pointLights[0].position", pointLightPositions[0]);
-    lightingShader.setVec3("pointLights[0].ambient", blueLightColor * glm::vec3(0.3f));
-    lightingShader.setVec3("pointLights[0].diffuse", blueLightColor * glm::vec3(1.0f));
-    lightingShader.setVec3("pointLights[0].specular", 0.6f, 0.6f, 0.6f);
-    lightingShader.setFloat("pointLights[0].constant", 1.0f);
-    lightingShader.setFloat("pointLights[0].linear", 0.002f);
-    lightingShader.setFloat("pointLights[0].quadratic", 0.0001f);
+    lightingShader->setVec3("pointLights[0].position", pointLightPositions[0]);
+    lightingShader->setVec3("pointLights[0].ambient", blueLightColor * glm::vec3(0.3f));
+    lightingShader->setVec3("pointLights[0].diffuse", blueLightColor * glm::vec3(1.0f));
+    lightingShader->setVec3("pointLights[0].specular", 0.6f, 0.6f, 0.6f);
+    lightingShader->setFloat("pointLights[0].constant", 1.0f);
+    lightingShader->setFloat("pointLights[0].linear", 0.002f);
+    lightingShader->setFloat("pointLights[0].quadratic", 0.0001f);
     // point light 2
-    lightingShader.setVec3("pointLights[1].position", pointLightPositions[1]);
-    lightingShader.setVec3("pointLights[1].ambient", redLightColor * glm::vec3(0.3f));
-    lightingShader.setVec3("pointLights[1].diffuse", redLightColor * glm::vec3(1.0f));
-    lightingShader.setVec3("pointLights[1].specular", 0.6f, 0.6f, 0.6f);
-    lightingShader.setFloat("pointLights[1].constant", 1.0f);
-    lightingShader.setFloat("pointLights[1].linear", 0.002f);
-    lightingShader.setFloat("pointLights[1].quadratic", 0.0001f);
+    lightingShader->setVec3("pointLights[1].position", pointLightPositions[1]);
+    lightingShader->setVec3("pointLights[1].ambient", redLightColor * glm::vec3(0.3f));
+    lightingShader->setVec3("pointLights[1].diffuse", redLightColor * glm::vec3(1.0f));
+    lightingShader->setVec3("pointLights[1].specular", 0.6f, 0.6f, 0.6f);
+    lightingShader->setFloat("pointLights[1].constant", 1.0f);
+    lightingShader->setFloat("pointLights[1].linear", 0.002f);
+    lightingShader->setFloat("pointLights[1].quadratic", 0.0001f);
 
     // spot lights
     int i = 0;
     for (glm::vec3 pos : spotLightPositions) {
-        lightingShader.setVec3("spotLights[" + std::to_string(i) + "].position", pos);
-        lightingShader.setVec3("spotLights[" + std::to_string(i) + "].direction", glm::vec3(0.0f, -1.0f, 0.0f));
-        lightingShader.setFloat("spotLights[" + std::to_string(i) + "].cutOff", glm::cos(glm::radians(25.0f)));
-        lightingShader.setFloat("spotLights[" + std::to_string(i) + "].outerCutOff", glm::cos(glm::radians(40.0f)));
-        lightingShader.setVec3("spotLights[" + std::to_string(i) + "].ambient", 0.3f, 0.3f, 0.3f);
-        lightingShader.setVec3("spotLights[" + std::to_string(i) + "].diffuse", 0.8f, 0.8f, 0.8f);
-        lightingShader.setVec3("spotLights[" + std::to_string(i) + "].specular", 1.0f, 1.0f, 1.0f);
-        lightingShader.setFloat("spotLights[" + std::to_string(i) + "].constant", 1.0f);
-        lightingShader.setFloat("spotLights[" + std::to_string(i) + "].linear", 0.014f);
-        lightingShader.setFloat("spotLights[" + std::to_string(i) + "].quadratic", 0.0007f);
+        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].position", pos);
+        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].direction", glm::vec3(0.0f, -1.0f, 0.0f));
+        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].cutOff", glm::cos(glm::radians(25.0f)));
+        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].outerCutOff", glm::cos(glm::radians(40.0f)));
+        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].ambient", 0.3f, 0.3f, 0.3f);
+        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].diffuse", 0.8f, 0.8f, 0.8f);
+        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].specular", 1.0f, 1.0f, 1.0f);
+        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].constant", 1.0f);
+        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].linear", 0.014f);
+        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].quadratic", 0.0007f);
         i++;
     }
     // spot lights do segundo hangar
     i = 9;
     for (glm::vec3 pos : spotLightPositions) {
-        lightingShader.setVec3("spotLights[" + std::to_string(i) + "].position", (pos + glm::vec3(1020.0f, 0.0f, 0.0f)));
-        lightingShader.setVec3("spotLights[" + std::to_string(i) + "].direction", glm::vec3(0.0f, -1.0f, 0.0f));
-        lightingShader.setFloat("spotLights[" + std::to_string(i) + "].cutOff", glm::cos(glm::radians(25.0f)));
-        lightingShader.setFloat("spotLights[" + std::to_string(i) + "].outerCutOff", glm::cos(glm::radians(40.0f)));
-        lightingShader.setVec3("spotLights[" + std::to_string(i) + "].ambient", 0.3f, 0.3f, 0.3f);
-        lightingShader.setVec3("spotLights[" + std::to_string(i) + "].diffuse", 0.8f, 0.8f, 0.8f);
-        lightingShader.setVec3("spotLights[" + std::to_string(i) + "].specular", 1.0f, 1.0f, 1.0f);
-        lightingShader.setFloat("spotLights[" + std::to_string(i) + "].constant", 1.0f);
-        lightingShader.setFloat("spotLights[" + std::to_string(i) + "].linear", 0.014f);
-        lightingShader.setFloat("spotLights[" + std::to_string(i) + "].quadratic", 0.0007f);
+        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].position", (pos + glm::vec3(1020.0f, 0.0f, 0.0f)));
+        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].direction", glm::vec3(0.0f, -1.0f, 0.0f));
+        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].cutOff", glm::cos(glm::radians(25.0f)));
+        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].outerCutOff", glm::cos(glm::radians(40.0f)));
+        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].ambient", 0.3f, 0.3f, 0.3f);
+        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].diffuse", 0.8f, 0.8f, 0.8f);
+        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].specular", 1.0f, 1.0f, 1.0f);
+        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].constant", 1.0f);
+        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].linear", 0.014f);
+        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].quadratic", 0.0007f);
         i++;
     }
 
@@ -913,11 +912,11 @@ void renderScene(Shader& lightingShader, Shader& lightingCubeShader) {
     auto renderHangar = [&](glm::vec3 translation, float rotation) {
         glm::mat4 model = glm::translate(glm::mat4(1.0f), translation);
         model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
-        lightingShader.setVec3("material.ambient", 0.2f, 0.2f, 0.2f);
-        lightingShader.setVec3("material.diffuse", 0.3f, 0.3f, 0.3f);
-        lightingShader.setVec3("material.specular", 0.7f, 0.7f, 0.7f);
-        lightingShader.setFloat("material.shininess", 25.0f);
-        lightingShader.setMat4("model", model);
+        lightingShader->setVec3("material.ambient", 0.2f, 0.2f, 0.2f);
+        lightingShader->setVec3("material.diffuse", 0.3f, 0.3f, 0.3f);
+        lightingShader->setVec3("material.specular", 0.7f, 0.7f, 0.7f);
+        lightingShader->setFloat("material.shininess", 25.0f);
+        lightingShader->setMat4("model", model);
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, vertices.size());
     };
@@ -930,11 +929,11 @@ void renderScene(Shader& lightingShader, Shader& lightingCubeShader) {
     model = glm::rotate(model, glm::radians(fighter_player.directionY), glm::vec3(-1.0f, 0.0f, 0.0f));
     model = glm::rotate(model, glm::radians(fighter_player.rotation), glm::vec3(0.0f, 0.0f, -1.0f));
     model = glm::scale(model, glm::vec3(35.0f));
-    lightingShader.setVec3("material.ambient", 0.2f, 0.2f, 0.2f);
-    lightingShader.setVec3("material.diffuse", 0.3f, 0.3f, 0.3f);
-    lightingShader.setVec3("material.specular", 0.5f, 0.5f, 0.5f);
-    lightingShader.setFloat("material.shininess", 32.0f);
-    lightingShader.setMat4("model", model);
+    lightingShader->setVec3("material.ambient", 0.2f, 0.2f, 0.2f);
+    lightingShader->setVec3("material.diffuse", 0.3f, 0.3f, 0.3f);
+    lightingShader->setVec3("material.specular", 0.5f, 0.5f, 0.5f);
+    lightingShader->setFloat("material.shininess", 32.0f);
+    lightingShader->setMat4("model", model);
     glBindVertexArray(VAO2);
     glDrawArrays(GL_TRIANGLES, 0, vertices2.size());
 
@@ -945,23 +944,23 @@ void renderScene(Shader& lightingShader, Shader& lightingCubeShader) {
         model = glm::rotate(model, glm::radians(enemy.directionY), glm::vec3(-1.0f, 0.0f, 0.0f));
         model = glm::rotate(model, glm::radians(enemy.rotation), glm::vec3(0.0f, 0.0f, -1.0f));
         model = glm::scale(model, glm::vec3(3.0f));
-        lightingShader.setVec3("material.ambient", 0.2f, 0.2f, 0.2f);
-        lightingShader.setVec3("material.diffuse", 0.3f, 0.3f, 0.3f);
-        lightingShader.setVec3("material.specular", 0.5f, 0.5f, 0.5f);
-        lightingShader.setFloat("material.shininess", 32.0f);
-        lightingShader.setMat4("model", model);
+        lightingShader->setVec3("material.ambient", 0.2f, 0.2f, 0.2f);
+        lightingShader->setVec3("material.diffuse", 0.3f, 0.3f, 0.3f);
+        lightingShader->setVec3("material.specular", 0.5f, 0.5f, 0.5f);
+        lightingShader->setFloat("material.shininess", 32.0f);
+        lightingShader->setMat4("model", model);
         glBindVertexArray(VAO3);
         glDrawArrays(GL_TRIANGLES, 0, vertices3.size());
     }
 
     // also draw the lamp object
-    lightingCubeShader.use();
-    lightingCubeShader.setMat4("projection", projection);
-    lightingCubeShader.setMat4("view", view);
+    lightingCubeShader->use();
+    lightingCubeShader->setMat4("projection", projection);
+    lightingCubeShader->setMat4("view", view);
     for(glm::vec3 pos : spotLightPositions){
         model = glm::translate(glm::mat4(1.0f), pos);
         model = glm::scale(model, glm::vec3(2.0f));
-        lightingCubeShader.setMat4("model", model);
+        lightingCubeShader->setMat4("model", model);
         glBindVertexArray(lightCubeVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
     }
@@ -969,7 +968,7 @@ void renderScene(Shader& lightingShader, Shader& lightingCubeShader) {
     for(glm::vec3 pos : spotLightPositions){
         model = glm::translate(glm::mat4(1.0f), (pos + glm::vec3(1020.0f, 0.0f, 0.0f)));
         model = glm::scale(model, glm::vec3(2.0f));
-        lightingCubeShader.setMat4("model", model);
+        lightingCubeShader->setMat4("model", model);
         glBindVertexArray(lightCubeVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
     }
