@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <map>
 #include <vector>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -13,6 +14,8 @@
 #include "include/camera.h"
 #include "include/tiny_obj_loader.h"
 #include "include/stb_image.h"
+#include "include/ft2build.h"
+#include FT_FREETYPE_H
 
 
 // Declaração das funções
@@ -20,6 +23,7 @@ int loadModel(const std::string& filePath, std::vector<glm::vec3>& vertices, std
 unsigned int loadCubemap(std::vector<std::string> faces);
 void setupSkybox();
 void loadLuz();
+int loadText();
 void renderScene();
 bool checkLanding();
 bool checkStart();
@@ -28,6 +32,7 @@ void animacaoAterragem(glm::vec3 ponto);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput();
+void RenderText(std::string text, float x, float y, float scale, glm::vec3 color);
 
 // Variáveis globais
 unsigned int SCR_WIDTH = 800;
@@ -36,6 +41,7 @@ GLFWwindow* window;
 Shader* skyboxShader;
 Shader* lightingShader;
 Shader* lightingCubeShader;
+Shader* textShader;
 
 unsigned int CameraMode = 0;
 
@@ -53,7 +59,8 @@ glm::vec3 spotLightPositions[] = {
 };
 glm::vec3 pointLightPositions[] = {
     glm::vec3(10.0f, 20.0f, 0.0f),
-    glm::vec3(1000.0f, 20.0f, 0.0f)
+    glm::vec3(1000.0f, 20.0f, 0.0f),
+    glm::vec3(500.0f, 60.0f, 100.0f)
 };
 glm::vec3 starLightColor(1.0f, 1.0f, 0.8f);
 glm::vec3 redLightColor(0.8f, 0.0f, 0.0f);
@@ -119,6 +126,16 @@ std::vector<std::string> faces = {
     "models/sky/skyboxzb.png"
 };
 
+// Holds all state information relevant to a character as loaded using FreeType
+struct Character {
+    unsigned int TextureID; // ID handle of the glyph texture
+    glm::ivec2   Size;      // Size of glyph
+    glm::ivec2   Bearing;   // Offset from baseline to left/top of glyph
+    unsigned int Advance;   // Horizontal offset to advance to next glyph
+};
+std::map<GLchar, Character> Characters;
+unsigned int VAOt, VBOt;
+
 /**
  * @brief A função principal inicializa e configura o GLFW, cria uma janela em fullscreen,
  * usa o GLAD para permitir o uso de todas as funções do OpenGL e é configurado o estado global do mesmo.
@@ -179,11 +196,12 @@ int main() {
     if(loadModel("models/xwing/xwing.obj", vertices3, normals3, texCoords3, VAO3, VBO3, NBO3, TBO3, false) == -1)
         return -1;
     loadLuz();
+    loadText();
 
     // Build and compile shaders
     lightingShader = new Shader("shaders/light.vs", "shaders/light.fs");
     lightingCubeShader = new Shader("shaders/lamp.vs", "shaders/lamp.fs");
-    // Create skybox shader
+    textShader = new Shader("shaders/text.vs", "shaders/text.fs");
     skyboxShader = new Shader("shaders/skybox.vs", "shaders/skybox.fs");
     
     // Setup skybox and load texture
@@ -212,6 +230,12 @@ int main() {
         // Render scene
         renderScene();
 
+        const std::string iniciar = "Para começar aperte ESPAÇO";
+        if(estacionado == 1){
+            RenderText(iniciar, (SCR_WIDTH - iniciar.length() * 40.0f) / 2.0f, SCR_HEIGHT / 2.0f, 2.0f, glm::vec3(1.0f, 1.0f, 1.0f));
+        }
+        // RenderText("(C) LearnOpenGL.com", 540.0f, 570.0f, 0.5f, glm::vec3(0.3, 0.7f, 0.9f));
+
         // Swap buffers and poll IO events
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -233,6 +257,8 @@ int main() {
     glDeleteBuffers(1, &NBO3);
     glDeleteVertexArrays(1, &lightCubeVAO);
     glDeleteBuffers(1, &lightVBO);
+    glDeleteVertexArrays(1, &VAOt);
+    glDeleteBuffers(1, &VBOt);
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glfwTerminate();
@@ -581,6 +607,98 @@ void loadLuz(){
     glEnableVertexAttribArray(0);
 }
 
+int loadText(){
+    // FreeType
+    // --------
+    FT_Library ft;
+    // All functions return a value different than 0 whenever an error occurred
+    if (FT_Init_FreeType(&ft))
+    {
+        std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
+        return -1;
+    }
+
+	// find path to font
+    std::string font_name = "fonts/ARIAL.TTF";
+    if (font_name.empty())
+    {
+        std::cout << "ERROR::FREETYPE: Failed to load font_name" << std::endl;
+        return -1;
+    }
+	
+	// load font as face
+    FT_Face face;
+    if (FT_New_Face(ft, font_name.c_str(), 0, &face)) {
+        std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
+        return -1;
+    }
+    else {
+        // set size to load glyphs as
+        FT_Set_Pixel_Sizes(face, 0, 48);
+
+        // disable byte-alignment restriction
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+        // load first 128 characters of ASCII set
+        for (unsigned char c = 0; c < 128; c++)
+        {
+            // Load character glyph 
+            if (FT_Load_Char(face, c, FT_LOAD_RENDER))
+            {
+                std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
+                continue;
+            }
+            // generate texture
+            unsigned int texture;
+            glGenTextures(1, &texture);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexImage2D(
+                GL_TEXTURE_2D,
+                0,
+                GL_RED,
+                face->glyph->bitmap.width,
+                face->glyph->bitmap.rows,
+                0,
+                GL_RED,
+                GL_UNSIGNED_BYTE,
+                face->glyph->bitmap.buffer
+            );
+            // set texture options
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            // now store character for later use
+            Character character = {
+                texture,
+                glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
+                glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
+                static_cast<unsigned int>(face->glyph->advance.x)
+            };
+            Characters.insert(std::pair<char, Character>(c, character));
+        }
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+    // destroy FreeType once we're finished
+    FT_Done_Face(face);
+    FT_Done_FreeType(ft);
+
+    
+    // configure VAO/VBO for texture quads
+    // -----------------------------------
+    glGenVertexArrays(1, &VAOt);
+    glGenBuffers(1, &VBOt);
+    glBindVertexArray(VAOt);
+    glBindBuffer(GL_ARRAY_BUFFER, VBOt);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    return 0;
+}
+
 /**
  * @brief Esta função itera pela lista de pontos de aterragem e verifica se o fighter a menos de uma certa distância de qualquer um desses pontos. 
  * Se o fighter estiver dentro da distância e a tecla de espaço for pressionada, é acionada a animação de aterragem e ajustada a orientação da câmera e do fighter.
@@ -732,14 +850,14 @@ void processInput()
     // Move forward with smooth acceleration
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
         if (fighter_player.movementSpeed < 100.0f) {
-            fighter_player.movementSpeed += 80.0f;
+            fighter_player.movementSpeed += 50.0f;
         }
         lastPressTime = glfwGetTime();
     }
     // Move backward with smooth deceleration
     else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
         if (fighter_player.movementSpeed > 20.0f) {
-            fighter_player.movementSpeed -= 100.0f * deltaTime;
+            fighter_player.movementSpeed -= 50.0f * deltaTime;
         }
     }
     else {
@@ -786,8 +904,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     // lastX = xpos;
     // lastY = ypos;
 
-    printf("x: %f\n", xoffset);
-    printf("y: %f\n", yoffset);
+    // printf("x: %f\n", xoffset);
+    // printf("y: %f\n", yoffset);
 
     float sensitivity = 0.01f;
     xoffset *= sensitivity;
@@ -875,6 +993,14 @@ void renderScene() {
     lightingShader->setFloat("pointLights[1].constant", 1.0f);
     lightingShader->setFloat("pointLights[1].linear", 0.002f);
     lightingShader->setFloat("pointLights[1].quadratic", 0.0001f);
+    // point light 3
+    lightingShader->setVec3("pointLights[2].position", pointLightPositions[2]);
+    lightingShader->setVec3("pointLights[2].ambient", blueLightColor * glm::vec3(0.5f));
+    lightingShader->setVec3("pointLights[2].diffuse", blueLightColor * glm::vec3(1.5f));
+    lightingShader->setVec3("pointLights[2].specular", 1.0f, 1.0f, 1.0f);
+    lightingShader->setFloat("pointLights[2].constant", 1.0f);
+    lightingShader->setFloat("pointLights[2].linear", 0.001f);
+    lightingShader->setFloat("pointLights[2].quadratic", 0.00005f);
 
     // spot lights
     int i = 0;
@@ -997,4 +1123,52 @@ void renderScene() {
     glBindVertexArray(0);
     
     glDepthFunc(GL_LESS); // Restore depth function
+}
+
+void RenderText(std::string text, float x, float y, float scale, glm::vec3 color)
+{
+    // activate corresponding render state	
+    glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(SCR_WIDTH), 0.0f, static_cast<float>(SCR_HEIGHT));
+    textShader->use();
+    textShader->setMat4("projection", projection);
+    glUniform3f(glGetUniformLocation(textShader->ID, "textColor"), color.x, color.y, color.z);
+    glActiveTexture(GL_TEXTURE0); 
+    glBindVertexArray(VAOt);
+
+    // iterate through all characters
+    std::string::const_iterator c;
+    for (c = text.begin(); c != text.end(); c++) 
+    {
+        Character ch = Characters[*c];
+
+        float xpos = x + ch.Bearing.x * scale;
+        float ypos = y - (ch.Size.y - ch.Bearing.y) * scale;
+
+        float w = ch.Size.x * scale;
+        float h = ch.Size.y * scale;
+        // update VBO for each character
+        float vertices[6][4] = {
+            { xpos,     ypos + h,   0.0f, 0.0f },            
+            { xpos,     ypos,       0.0f, 1.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+
+            { xpos,     ypos + h,   0.0f, 0.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+            { xpos + w, ypos + h,   1.0f, 0.0f }           
+        };
+        // render glyph texture over quad
+        glBindTexture(GL_TEXTURE_2D, ch.TextureID);
+        // printf("%d\n", ch.TextureID);
+        // update content of VBO memory
+        glBindBuffer(GL_ARRAY_BUFFER, VBOt);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices); // be sure to use glBufferSubData and not glBufferData
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        // render quad
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
+        x += (ch.Advance >> 6) * scale; // bitshift by 6 to get value in pixels (2^6 = 64 (divide amount of 1/64th pixels by 64 to get amount of pixels))
+    }
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
