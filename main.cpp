@@ -27,7 +27,6 @@ int loadText();
 void renderScene();
 bool checkStart();
 void animacaoSaida();
-void animacaoAterragem(glm::vec3 ponto);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput();
@@ -86,7 +85,7 @@ struct Fighter {
     Fighter(glm::vec3 pos, glm::vec3 frnt, float rotation, float directionX, float directionY, float speed, int hp) 
         : position(pos), front(frnt), rotation(rotation), directionX(directionX), directionY(directionY), movementSpeed(speed), hp(hp) {}
 };
-Fighter fighter_player(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 10.0f, 3);
+Fighter fighter_player(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 30.0f, 3);
 std::vector<Fighter> enemies = {
     Fighter(glm::vec3(543.2f, 54.0f, -33.0f), -camera.Front, 0.0f, camera.Yaw, camera.Pitch, 10.0f, 1),
     Fighter(glm::vec3(600.0f, 54.0f, -50.0f), -camera.Front, 0.0f, camera.Yaw, camera.Pitch, 10.0f, 1),
@@ -210,6 +209,9 @@ int main() {
     skyboxShader->use();
     skyboxShader->setInt("skybox", 0);
 
+    glm::vec3 cameraOffset(0.0f, 10.0f, 60.0f);
+    camera.Position = fighter_player.position - fighter_player.front * cameraOffset.z + glm::vec3(0.0f, cameraOffset.y, 0.0f);
+
     // Render loop
     while (!glfwWindowShouldClose(window))
     {
@@ -218,13 +220,10 @@ int main() {
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        // Process input
         processInput();
-        checkStart();
-        // Render scene
         renderScene();
-
         if(gameState == 0){
+            checkStart();
             const std::string titulo = "- War of the Stars -";
             const std::string iniciar = "Press SPACE To Start";
             float textWidth2 = titulo.length() * 42.0f; 
@@ -787,11 +786,10 @@ int loadText(){
  * @return bool - true se tiver sido realizada a partida, ou false caso contrário.
  */
 bool checkStart() {
-    if(gameState == 0){
-        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
-            animacaoSaida();
-            return true;
-        }
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
+        animacaoSaida();
+        gameState = 1;
+        return true;
     }
     return false;
 }
@@ -821,8 +819,6 @@ void animacaoSaida(){
         glfwPollEvents();
     }
     fighter_player.position.y = endY;
-
-    gameState = 1;
 }
 
 /**
@@ -879,7 +875,7 @@ void processInput()
 
     // Move forward with smooth acceleration
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        if (fighter_player.movementSpeed < 100.0f) {
+        if (fighter_player.movementSpeed < 50.0f) {
             fighter_player.movementSpeed += 50.0f;
         }
         lastPressTime = glfwGetTime();
@@ -887,17 +883,19 @@ void processInput()
     // Move backward with smooth deceleration
     else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
         if (fighter_player.movementSpeed > 20.0f) {
-            fighter_player.movementSpeed -= 50.0f * deltaTime;
+            fighter_player.movementSpeed -= 5.0f;
+        } else {
+            fighter_player.movementSpeed = 20.0f; // Minimum speed
         }
     }
     else {
         // Gradual deceleration
         float currentTime = glfwGetTime();
         if (currentTime - lastPressTime > 1.0f) { // 1 second delay before deceleration
-            if (fighter_player.movementSpeed > 10.0f) {
-                fighter_player.movementSpeed -= 20.0f * deltaTime; // Decelerate more gradually
+            if (fighter_player.movementSpeed > 30.0f) {
+                fighter_player.movementSpeed -= 5.0f; // Decelerate more gradually
             } else {
-                fighter_player.movementSpeed = 20.0f; // Minimum speed
+                fighter_player.movementSpeed = 30.0f; // Minimum speed
             }
         }
     }
@@ -988,10 +986,24 @@ void renderScene() {
     glClearColor(0.01f, 0.0f, 0.02f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
+    //movimento automatico em direção ao hangar inimigo
+    if(gameState == 1){
+        glm::vec3 direction = glm::vec3(
+            cos(glm::radians(fighter_player.directionY)) * cos(glm::radians(fighter_player.directionX)),
+            sin(glm::radians(fighter_player.directionY)),
+            cos(glm::radians(fighter_player.directionY)) * sin(glm::radians(fighter_player.directionX))
+        );
+        fighter_player.position += fighter_player.movementSpeed * direction * 0.05f;
+    }
+
     // Update camera position
     if(cameraMode == 0){
         glm::vec3 cameraOffset(0.0f, 10.0f, 60.0f);
-        camera.Position = glm::mix(camera.Position, fighter_player.position - fighter_player.front * cameraOffset.z + glm::vec3(0.0f, cameraOffset.y, 0.0f), 0.1f);
+        glm::vec3 finalPos = glm::vec3(fighter_player.position - fighter_player.front * cameraOffset.z + glm::vec3(0.0f, cameraOffset.y, 0.0f));
+        if (glm::distance(camera.Position, finalPos) < 5)
+            camera.Position = glm::mix(camera.Position, finalPos, 0.5f);
+        else
+            camera.Position = glm::mix(camera.Position, finalPos, 0.1f);
     }
     else {
         camera.Position = fighter_player.position;
@@ -1075,7 +1087,7 @@ void renderScene() {
         model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
         lightingShader->setVec3("material.ambient", 0.3f, 0.3f, 0.3f);
         lightingShader->setVec3("material.diffuse", 0.4f, 0.4f, 0.4f);
-        lightingShader->setVec3("material.specular", 0.8f, 0.8f, 0.8f);
+        lightingShader->setVec3("material.specular", 0.6f, 0.6f, 0.6f);
         lightingShader->setFloat("material.shininess", 25.0f);
         lightingShader->setMat4("model", model);
         glBindVertexArray(VAO);
@@ -1132,16 +1144,6 @@ void renderScene() {
         lightingCubeShader->setMat4("model", model);
         glBindVertexArray(lightCubeVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
-    }
-
-    //movimento automatico em direção ao hangar inimigo
-    if(gameState == 1){
-        glm::vec3 direction = glm::vec3(
-            cos(glm::radians(fighter_player.directionY)) * cos(glm::radians(fighter_player.directionX)),
-            sin(glm::radians(fighter_player.directionY)),
-            cos(glm::radians(fighter_player.directionY)) * sin(glm::radians(fighter_player.directionX))
-        );
-        fighter_player.position += fighter_player.movementSpeed * direction * deltaTime;
     }
 
     // Then render skybox
