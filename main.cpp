@@ -62,7 +62,7 @@ glm::vec3 pointLightPositions[] = {
     glm::vec3(1000.0f, 20.0f, 0.0f),
     glm::vec3(500.0f, 60.0f, 100.0f)
 };
-glm::vec3 starLightColor(1.0f, 1.0f, 0.8f);
+glm::vec3 starLightColor(0.7f, 0.8f, 1.0f);
 glm::vec3 redLightColor(0.8f, 0.0f, 0.0f);
 glm::vec3 blueLightColor(0.0f, 0.0f, 0.8f);
 
@@ -188,6 +188,9 @@ int main() {
     // Configure global OpenGL state
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE); 
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     if (loadModel("models/hangar/hangar.obj", vertices, normals, texCoords, VAO, VBO, NBO, TBO, false) == -1)
         return -1;
@@ -230,9 +233,10 @@ int main() {
         // Render scene
         renderScene();
 
-        const std::string iniciar = "Para começar aperte ESPAÇO";
+        const std::string iniciar = "Para comecar aperte ESPACO";
         if(estacionado == 1){
-            RenderText(iniciar, (SCR_WIDTH - iniciar.length() * 40.0f) / 2.0f, SCR_HEIGHT / 2.0f, 2.0f, glm::vec3(1.0f, 1.0f, 1.0f));
+            float textWidth = iniciar.length() * 25.0f; 
+            RenderText(iniciar, (SCR_WIDTH - textWidth) / 2.0f, SCR_HEIGHT / 2.0f, 1.0f, glm::vec3(1.0f, 1.0f, 1.0f));
         }
         // RenderText("(C) LearnOpenGL.com", 540.0f, 570.0f, 0.5f, glm::vec3(0.3, 0.7f, 0.9f));
 
@@ -1009,7 +1013,7 @@ void renderScene() {
         lightingShader->setVec3("spotLights[" + std::to_string(i) + "].direction", glm::vec3(0.0f, -1.0f, 0.0f));
         lightingShader->setFloat("spotLights[" + std::to_string(i) + "].cutOff", glm::cos(glm::radians(25.0f)));
         lightingShader->setFloat("spotLights[" + std::to_string(i) + "].outerCutOff", glm::cos(glm::radians(40.0f)));
-        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].ambient", 0.3f, 0.3f, 0.3f);
+        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].ambient", 0.4f, 0.4f, 0.4f);
         lightingShader->setVec3("spotLights[" + std::to_string(i) + "].diffuse", 0.8f, 0.8f, 0.8f);
         lightingShader->setVec3("spotLights[" + std::to_string(i) + "].specular", 1.0f, 1.0f, 1.0f);
         lightingShader->setFloat("spotLights[" + std::to_string(i) + "].constant", 1.0f);
@@ -1024,7 +1028,7 @@ void renderScene() {
         lightingShader->setVec3("spotLights[" + std::to_string(i) + "].direction", glm::vec3(0.0f, -1.0f, 0.0f));
         lightingShader->setFloat("spotLights[" + std::to_string(i) + "].cutOff", glm::cos(glm::radians(25.0f)));
         lightingShader->setFloat("spotLights[" + std::to_string(i) + "].outerCutOff", glm::cos(glm::radians(40.0f)));
-        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].ambient", 0.3f, 0.3f, 0.3f);
+        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].ambient", 0.4f, 0.4f, 0.4f);
         lightingShader->setVec3("spotLights[" + std::to_string(i) + "].diffuse", 0.8f, 0.8f, 0.8f);
         lightingShader->setVec3("spotLights[" + std::to_string(i) + "].specular", 1.0f, 1.0f, 1.0f);
         lightingShader->setFloat("spotLights[" + std::to_string(i) + "].constant", 1.0f);
@@ -1038,9 +1042,9 @@ void renderScene() {
     auto renderHangar = [&](glm::vec3 translation, float rotation) {
         glm::mat4 model = glm::translate(glm::mat4(1.0f), translation);
         model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
-        lightingShader->setVec3("material.ambient", 0.2f, 0.2f, 0.2f);
-        lightingShader->setVec3("material.diffuse", 0.3f, 0.3f, 0.3f);
-        lightingShader->setVec3("material.specular", 0.7f, 0.7f, 0.7f);
+        lightingShader->setVec3("material.ambient", 0.3f, 0.3f, 0.3f);
+        lightingShader->setVec3("material.diffuse", 0.4f, 0.4f, 0.4f);
+        lightingShader->setVec3("material.specular", 0.8f, 0.8f, 0.8f);
         lightingShader->setFloat("material.shininess", 25.0f);
         lightingShader->setMat4("model", model);
         glBindVertexArray(VAO);
