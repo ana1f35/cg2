@@ -25,7 +25,6 @@ void setupSkybox();
 void loadLuz();
 int loadText();
 void renderScene();
-bool checkLanding();
 bool checkStart();
 void animacaoSaida();
 void animacaoAterragem(glm::vec3 ponto);
@@ -43,7 +42,9 @@ Shader* lightingShader;
 Shader* lightingCubeShader;
 Shader* textShader;
 
-unsigned int CameraMode = 0;
+unsigned int cameraMode = 0;
+unsigned int gameState = 0;
+int pontuacao = 0;
 
 // Lighting
 glm::vec3 spotLightPositions[] = {
@@ -80,22 +81,16 @@ struct Fighter {
     float directionX;
     float directionY;
     float movementSpeed;
+    int hp;
         
-    Fighter(glm::vec3 pos, glm::vec3 frnt, float rotation, float directionX, float directionY, float speed) 
-        : position(pos), front(frnt), rotation(rotation), directionX(directionX), directionY(directionY), movementSpeed(speed) {}
+    Fighter(glm::vec3 pos, glm::vec3 frnt, float rotation, float directionX, float directionY, float speed, int hp) 
+        : position(pos), front(frnt), rotation(rotation), directionX(directionX), directionY(directionY), movementSpeed(speed), hp(hp) {}
 };
-Fighter fighter_player(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 10.0f);
+Fighter fighter_player(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 10.0f, 3);
 std::vector<Fighter> enemies = {
-    Fighter(glm::vec3(543.2f, 54.0f, -33.0f), -camera.Front, 0.0f, camera.Yaw, camera.Pitch, 10.0f),
-    Fighter(glm::vec3(600.0f, 54.0f, -50.0f), -camera.Front, 0.0f, camera.Yaw, camera.Pitch, 10.0f),
-    Fighter(glm::vec3(650.0f, 54.0f, -70.0f), -camera.Front, 0.0f, camera.Yaw, camera.Pitch, 10.0f)
-};
-
-// Aterragens
-unsigned int estacionado = 1;
-std::vector<glm::vec3> pontosAterragem = {
-    glm::vec3(453.0f, 54.0f, 33.5f),
-    glm::vec3(43.2f, 54.0f, -33.5f)
+    Fighter(glm::vec3(543.2f, 54.0f, -33.0f), -camera.Front, 0.0f, camera.Yaw, camera.Pitch, 10.0f, 1),
+    Fighter(glm::vec3(600.0f, 54.0f, -50.0f), -camera.Front, 0.0f, camera.Yaw, camera.Pitch, 10.0f, 1),
+    Fighter(glm::vec3(650.0f, 54.0f, -70.0f), -camera.Front, 0.0f, camera.Yaw, camera.Pitch, 10.0f, 1)
 };
 
 // Timing
@@ -225,25 +220,46 @@ int main() {
 
         // Process input
         processInput();
-        // Verificar se está perto de um ponto de aterragem
-        if(checkLanding());
-        // Se não aterrou, então verificar a partida
-        else
-            checkStart();
+        checkStart();
         // Render scene
         renderScene();
 
-        const std::string titulo = "- Space Conflict -";
-        const std::string iniciar = "Press SPACE To Start";
-        const std::string titulo = "- Space Conflict -";
-        if(estacionado == 1){
+        if(gameState == 0){
+            const std::string titulo = "- War of the Stars -";
+            const std::string iniciar = "Press SPACE To Start";
             float textWidth2 = titulo.length() * 42.0f; 
             RenderText(titulo, (SCR_WIDTH - textWidth2) / 2.0f, SCR_HEIGHT / 2.0f + 50.0f, 1.0f, textColor, false);
             float textWidth = iniciar.length() * 25.0f; 
             RenderText(iniciar, (SCR_WIDTH - textWidth) / 2.0f, SCR_HEIGHT / 2.0f - 50.0f, 1.0f, textColor, true);
         }
-        else{
-            
+        // Durante o jogo mostra: vida e pontuação
+        else if(gameState == 1){
+            std::string vida = "Health: " + std::to_string(fighter_player.hp);
+            std::string pontuacaoStr = "Points: " + std::to_string(pontuacao);
+            RenderText(vida, SCR_WIDTH - 300.0f, SCR_HEIGHT - 100.0f, 1.0f, textColor, true);
+            RenderText(pontuacaoStr, SCR_WIDTH - 300.0f, SCR_HEIGHT - 180.0f, 1.0f, textColor, true);
+        }
+        // Em pausa (controlos)
+        else if(gameState == 2){
+            const std::string controlsTitle = "Game Controls";
+            const std::string controlsText1 = "W - Increase Speed";
+            const std::string controlsText2 = "S - Decrease Speed";
+            const std::string controlsText3 = "V - Toggle Camera View";
+            const std::string controlsText6 = "ESC - Exit Game";
+            const std::string controlsText7 = "C - Close Controls Menu";
+
+            float titleWidth = controlsTitle.length() * 48.0f;
+            RenderText(controlsTitle, (SCR_WIDTH - titleWidth) / 2.0f, SCR_HEIGHT / 2.0f + 380.0f, 1.0f, textColor, false);
+            float textWidth1 = controlsText1.length() * 25.0f;
+            RenderText(controlsText1, (SCR_WIDTH - textWidth1) / 2.0f, SCR_HEIGHT / 2.0f + 160.0f, 1.0f, textColor, true);
+            float textWidth2 = controlsText2.length() * 25.0f;
+            RenderText(controlsText2, (SCR_WIDTH - textWidth2) / 2.0f, SCR_HEIGHT / 2.0f + 80.0f, 1.0f, textColor, true);
+            float textWidth3 = controlsText3.length() * 25.0f;
+            RenderText(controlsText3, (SCR_WIDTH - textWidth3) / 2.0f, SCR_HEIGHT / 2.0f, 1.0f, textColor, true);
+            float textWidth6 = controlsText6.length() * 25.0f;
+            RenderText(controlsText6, (SCR_WIDTH - textWidth6) / 2.0f, SCR_HEIGHT / 2.0f - 150.0f, 1.0f,  textColor, true);
+            float textWidth7 = controlsText7.length() * 25.0f;
+            RenderText(controlsText7, (SCR_WIDTH - textWidth7) / 2.0f, SCR_HEIGHT / 2.0f - 250.0f, 1.0f, textColor, true);
         }
 
         // Swap buffers and poll IO events
@@ -765,35 +781,13 @@ int loadText(){
 }
 
 /**
- * @brief Esta função itera pela lista de pontos de aterragem e verifica se o fighter a menos de uma certa distância de qualquer um desses pontos. 
- * Se o fighter estiver dentro da distância e a tecla de espaço for pressionada, é acionada a animação de aterragem e ajustada a orientação da câmera e do fighter.
- *
- * @param lightingShader Referência ao shader usado para efeitos de iluminação.
- * @return bool - true se tiver sido realizada uma aterragem, ou false caso contrário.
- */
-bool checkLanding() {
-    for (glm::vec3 ponto : pontosAterragem) {
-        float distance = glm::distance(fighter_player.position, ponto);
-        if (estacionado == 0 && distance < 20.0f) {
-            if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-                animacaoAterragem(ponto);
-                camera.Front.x = -camera.Front.x;
-                fighter_player.front.x = camera.Front.x;
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-/**
  * @brief Esta função verifica se o fighter está num estado de "estacionado" e caso esteja e a tecla de espaço for pressionada, é acionada a animação de partida.
  *
  * @param lightingShader Referência ao shader usado para efeitos de iluminação.
  * @return bool - true se tiver sido realizada a partida, ou false caso contrário.
  */
 bool checkStart() {
-    if(estacionado != 0){
+    if(gameState == 0){
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
             animacaoSaida();
             return true;
@@ -828,62 +822,8 @@ void animacaoSaida(){
     }
     fighter_player.position.y = endY;
 
-    estacionado = 0;
+    gameState = 1;
 }
-
-/**
- * @brief Esta função anima a aterragem de um fighter, ajustando sua direção, rotação e posição ao longo do tempo, 
- * de forma a regressar a uma posição neutra e virado para a saída do hangar em que aterrou. 
- * 
- * @param lightingShader Referência ao shader usado para iluminação na cena.
- * @param ponto O ponto de aterragem alvo.
- */
-void animacaoAterragem(glm::vec3 ponto) {
-    estacionado = 1;
-
-    float endDirectionY = 0.0f;
-    float endRotation = 0.0f;
-    // Primeiramente ajustar a direção Y e rotação de modo a que o fighter não esteja inclinado em nenhuma direção
-    while (fabs(fighter_player.directionY - endDirectionY) > 0.1f || fabs(fighter_player.rotation - endRotation) > 0.1f) {
-        float t = deltaTime * 1.0f;
-        fighter_player.directionY = glm::mix(fighter_player.directionY, endDirectionY, t);
-        fighter_player.rotation = glm::mix(fighter_player.rotation, endRotation, t);
-       
-        renderScene();
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
-
-    float endDirectionX = 180.0f;
-    // Ajustar a direção X do fighter para a saída do hangar caso necessário
-    if (fighter_player.directionX > 100 && fighter_player.directionX < 260) {
-        endDirectionX = 0.0f;
-    }
-    // Depois rodar o fighter de forma a que fique virado para a saida o hnagar
-    while (fabs(fighter_player.directionX - endDirectionX) > 0.5f) {
-        float t = deltaTime * 0.5f;
-        fighter_player.directionX = glm::mix(fighter_player.directionX, endDirectionX, t);
-      
-        renderScene();
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
-
-    // Por fim mover o fighter para a posição desejada
-    while (glm::distance(fighter_player.position, ponto) > 0.1f) {
-        float t = deltaTime * 1.0f;
-        fighter_player.position = glm::mix(fighter_player.position, ponto, t);
-
-        renderScene();
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
-
-    // Ajusta os ângulos da camera no final da animção
-    camera.Yaw = endDirectionX;
-    camera.Pitch = 0.0f;
-}
-
 
 /**
  * @brief Esta função verifica inputs de teclas específicas e atualiza a posição e rotação do fighter com base no input. 
@@ -902,12 +842,37 @@ void processInput()
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    if(estacionado != 0)
+    if(gameState == 0)
+        return;
+
+    static bool cKeyPressed = false;
+    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
+        if (!cKeyPressed) {
+            if (gameState == 1)
+                gameState = 2;
+            else if (gameState == 2)
+                gameState = 1;
+            cKeyPressed = true;
+        }
+    } else {
+        cKeyPressed = false;
+    }
+
+    if(gameState == 2)
         return;
 
     // Toggle camera modes (free camera vs. fixed behind the player)
+    static bool vKeyPressed = false;
     if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
-        CameraMode = 1 - CameraMode;
+        if (!vKeyPressed) {
+            if(cameraMode == 0)
+                cameraMode = 1;
+            else
+                cameraMode = 0;
+            vKeyPressed = true;
+        }
+    } else {
+        vKeyPressed = false;
     }
 
     static float lastPressTime = 0.0f;
@@ -948,7 +913,7 @@ void processInput()
  */
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-    if(estacionado == 1)
+    if(gameState == 0 || gameState == 2)
         return;
 
     // if (firstMouse)
@@ -987,6 +952,11 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     // Smoothly rotate the fighter based on the camera's yaw
     const float rotationSpeed = 5.0f;
     fighter_player.rotation -= xoffset * rotationSpeed * deltaTime;
+    if (fighter_player.rotation > 45.0f) {
+        fighter_player.rotation = 45.0f;
+    } else if (fighter_player.rotation < -45.0f) {
+        fighter_player.rotation = -45.0f;
+    }
 
     // Re-center the cursor in the middle of the window
     glfwSetCursorPos(window, width / 2.0, height / 2.0);
@@ -1019,7 +989,7 @@ void renderScene() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     // Update camera position
-    if(CameraMode == 0){
+    if(cameraMode == 0){
         glm::vec3 cameraOffset(0.0f, 10.0f, 60.0f);
         camera.Position = glm::mix(camera.Position, fighter_player.position - fighter_player.front * cameraOffset.z + glm::vec3(0.0f, cameraOffset.y, 0.0f), 0.1f);
     }
@@ -1165,7 +1135,7 @@ void renderScene() {
     }
 
     //movimento automatico em direção ao hangar inimigo
-    if(estacionado == 0){
+    if(gameState == 1){
         glm::vec3 direction = glm::vec3(
             cos(glm::radians(fighter_player.directionY)) * cos(glm::radians(fighter_player.directionX)),
             sin(glm::radians(fighter_player.directionY)),
