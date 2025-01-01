@@ -15,7 +15,6 @@
 #include "include/tiny_obj_loader.h"
 #include "include/stb_image.h"
 #include "include/ft2build.h"
-#include "npc.cpp"
 #include FT_FREETYPE_H
 
 
@@ -1164,7 +1163,7 @@ void renderScene() {
         model = glm::rotate(model, glm::radians(enemy.directionX), glm::vec3(0.0f, -1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(enemy.directionY), glm::vec3(-1.0f, 0.0f, 0.0f));
         model = glm::rotate(model, glm::radians(enemy.rotation), glm::vec3(0.0f, 0.0f, -1.0f));
-        model = glm::scale(model, glm::vec3(3.0f));
+        model = glm::scale(model, glm::vec3(4.0f));
         lightingShader->setVec3("material.ambient", 0.2f, 0.2f, 0.2f);
         lightingShader->setVec3("material.diffuse", 0.3f, 0.3f, 0.3f);
         lightingShader->setVec3("material.specular", 0.5f, 0.5f, 0.5f);
