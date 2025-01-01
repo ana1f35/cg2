@@ -5,6 +5,7 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <algorithm>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -17,6 +18,39 @@
 #include "include/ft2build.h"
 #include FT_FREETYPE_H
 
+
+// Fighter
+struct Fighter {
+    glm::vec3 position;
+    glm::vec3 front;
+    float rotation;
+    float directionX;
+    float directionY;
+    float movementSpeed;
+    int hp;
+    float collisionRadius;
+        
+    Fighter(glm::vec3 pos, glm::vec3 frnt, float rotation, float directionX, float directionY, float speed, int hp, float radius) 
+        : position(pos), front(frnt), rotation(rotation), directionX(directionX), directionY(directionY), movementSpeed(speed), hp(hp), collisionRadius(radius) {}
+};
+
+struct Projectile {
+    glm::vec3 position;
+    glm::vec3 direction;
+    float speed;
+    float collisionRadius;
+
+    Projectile(glm::vec3 pos, glm::vec3 dir, float spd, float radius)
+        : position(pos), direction(glm::normalize(dir)), speed(spd), collisionRadius(radius) {}
+};
+
+// Holds all state information relevant to a character as loaded using FreeType
+struct Character {
+    unsigned int TextureID; // ID handle of the glyph texture
+    glm::ivec2   Size;      // Size of glyph
+    glm::ivec2   Bearing;   // Offset from baseline to left/top of glyph
+    unsigned int Advance;   // Horizontal offset to advance to next glyph
+};
 
 // Declaração das funções
 int loadModel(const std::string& filePath, std::vector<glm::vec3>& vertices, std::vector<glm::vec3>& normals, std::vector<glm::vec2>& texCoords, unsigned int& VAO, unsigned int& VBO, unsigned int& NBO, unsigned int& TBO, bool centerModel);
@@ -32,6 +66,11 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput();
 void RenderText(std::string text, float x, float y, float scale, glm::vec3 color, bool useFirstFont);
+bool isColliding(const glm::vec3& pos1, float radius1, const glm::vec3& pos2, float radius2);
+void checkCollisions();
+void renderBoundingBox(const Shader& shader);
+void shootProjectile(const Fighter& fighter);
+void updateProjectiles(float deltaTime);
 
 // Variáveis globais
 unsigned int SCR_WIDTH = 800;
@@ -45,6 +84,10 @@ Shader* textShader;
 unsigned int cameraMode = 0;
 unsigned int gameState = 0;
 int pontuacao = 0;
+
+static float lastTime = glfwGetTime();
+float currentTime = glfwGetTime();
+float deltaTime = currentTime - lastTime;
 
 // Lighting
 glm::vec3 spotLightPositions[] = {
@@ -73,26 +116,15 @@ float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
 
-// Fighter
-struct Fighter {
-    glm::vec3 position;
-    glm::vec3 front;
-    float rotation;
-    float directionX;
-    float directionY;
-    float movementSpeed;
-    int hp;
-        
-    Fighter(glm::vec3 pos, glm::vec3 frnt, float rotation, float directionX, float directionY, float speed, int hp) 
-        : position(pos), front(frnt), rotation(rotation), directionX(directionX), directionY(directionY), movementSpeed(speed), hp(hp) {}
-};
-Fighter fighter_player(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 30.0f, 3);
+Fighter fighter_player(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 30.0f, 3, 10.0f);
 // Inicialmente estão 3 estacionados
 std::vector<Fighter> enemies = {
-    Fighter(glm::vec3(1000.0f, 5.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1),
-    Fighter(glm::vec3(900.0f, 5.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1),
-    Fighter(glm::vec3(1000.0f, 5.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1)
+    Fighter(glm::vec3(1000.0f, 5.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1, 10.0f),
+    Fighter(glm::vec3(900.0f, 5.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1, 10.0f),
+    Fighter(glm::vec3(1000.0f, 5.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1, 10.0f)
 };
+
+std::vector<Projectile> projectiles;
 
 // Vertex data
 // VBO (Vertex Buffer Object): Stores vertex data.
@@ -107,6 +139,8 @@ unsigned int VBO3, VAO3, NBO3, TBO3;
 std::vector<glm::vec2> texCoords, texCoords2, texCoords3;
 unsigned int lightVBO, lightCubeVAO;
 unsigned int skyboxVAO, skyboxVBO;
+unsigned int numSphereVertices, VAOSphere;
+
 // Skybox texture
 unsigned int cubemapTexture; 
 std::vector<std::string> faces = {
@@ -118,13 +152,6 @@ std::vector<std::string> faces = {
     "models/sky/skyboxzb.png"
 };
 
-// Holds all state information relevant to a character as loaded using FreeType
-struct Character {
-    unsigned int TextureID; // ID handle of the glyph texture
-    glm::ivec2   Size;      // Size of glyph
-    glm::ivec2   Bearing;   // Offset from baseline to left/top of glyph
-    unsigned int Advance;   // Horizontal offset to advance to next glyph
-};
 std::map<GLchar, Character> Characters, Characters2;
 unsigned int VAOt, VBOt;
 glm::vec3 textColor = glm::vec3(255.0f / 255.0f, 232.0f / 255.0f, 31.0f / 255.0f);
@@ -254,6 +281,9 @@ int main() {
             float textWidth7 = controlsText7.length() * 25.0f;
             RenderText(controlsText7, (SCR_WIDTH - textWidth7) / 2.0f, SCR_HEIGHT / 2.0f - 250.0f, 1.0f, textColor, true);
         }
+
+        updateProjectiles(deltaTime);
+        checkCollisions();
 
         // Swap buffers and poll IO events
         glfwSwapBuffers(window);
@@ -817,9 +847,6 @@ void animacaoSaida(){
 }
 
 void moverInimigos() {
-    static float lastTime = glfwGetTime();
-    float currentTime = glfwGetTime();
-    float deltaTime = currentTime - lastTime;
     lastTime = currentTime;
 
     for (auto it = enemies.begin(); it != enemies.end(); ) {
@@ -946,6 +973,16 @@ void processInput()
             }
         }
     }
+
+    static bool fireKeyPressed = false;
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+        if (!fireKeyPressed) {
+            shootProjectile(fighter_player);
+            fireKeyPressed = true;
+        }
+        } else {
+            fireKeyPressed = false;
+        }
 }
 
 /**
@@ -1207,7 +1244,11 @@ void renderScene() {
     glBindVertexArray(0);
     
     glDepthFunc(GL_LESS); // Restore depth function
+
+    renderBoundingBox(*lightingShader);
+
 }
+
 void RenderText(std::string text, float x, float y, float scale, glm::vec3 color, bool useFirstFont = true)
 {
     // activate corresponding render state	
@@ -1257,4 +1298,63 @@ void RenderText(std::string text, float x, float y, float scale, glm::vec3 color
     }
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+bool isColliding(const glm::vec3& pos1, float radius1, const glm::vec3& pos2, float radius2) {
+    float distance = glm::distance(pos1, pos2);
+    return distance < (radius1 + radius2);
+}
+
+void checkCollisions() {
+for (auto& enemy : enemies) {
+        if (enemy.hp <= 0) continue; // Ignore inimigos já destruídos
+
+        for (auto& proj : projectiles) {
+            if (isColliding(proj.position, proj.collisionRadius, enemy.position, enemy.collisionRadius)) {
+                // Colisão detectada
+                enemy.hp = 0; // Marca o inimigo como destruído
+                proj.position.z = 10000.0f; // Move o projétil para fora
+                pontuacao += 10; // Incrementa a pontuação
+                break;
+            }
+        }
+    }
+
+    // Remover projéteis fora da tela
+    projectiles.erase(std::remove_if(projectiles.begin(), projectiles.end(), [](const Projectile& proj) {
+        return proj.position.z > 9999.0f;
+    }), projectiles.end());
+}
+
+void renderBoundingBox(const Shader& shader) {
+    for (const auto& enemy : enemies) {
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), enemy.position);
+        model = glm::scale(model, glm::vec3(enemy.collisionRadius * 2.0f)); // Escala para representar o raio
+        shader.setMat4("model", model);
+
+        // Renderize uma esfera representando a bounding sphere
+        glBindVertexArray(VAOSphere);
+        glDrawArrays(GL_TRIANGLES, 0, numSphereVertices);
+    }
+}
+
+void shootProjectile(const Fighter& fighter) {
+    // Define a posição inicial e a direção do projétil
+    glm::vec3 projectilePosition = fighter.position + fighter.front * 5.0f; // Ajuste o offset inicial
+    glm::vec3 projectileDirection = fighter.front;
+    float projectileSpeed = 100.0f; // Velocidade do projétil
+    float collisionRadius = 2.0f;  // Raio de colisão
+
+    projectiles.emplace_back(projectilePosition, projectileDirection, projectileSpeed, collisionRadius);
+}
+
+void updateProjectiles(float deltaTime) {
+    for (auto& proj : projectiles) {
+        proj.position += proj.direction * proj.speed * deltaTime;
+    }
+
+    // Remover projéteis que saíram dos limites
+    projectiles.erase(std::remove_if(projectiles.begin(), projectiles.end(), [](const Projectile& proj) {
+        return proj.position.z > 1000.0f || proj.position.z < -1000.0f; // Limites arbitrários
+    }), projectiles.end());
 }
