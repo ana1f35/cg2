@@ -15,6 +15,7 @@
 #include "include/tiny_obj_loader.h"
 #include "include/stb_image.h"
 #include "include/ft2build.h"
+#include "npc.cpp"
 #include FT_FREETYPE_H
 
 
@@ -27,6 +28,7 @@ int loadText();
 void renderScene();
 bool checkStart();
 void animacaoSaida();
+void moverInimigos();
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput();
@@ -86,10 +88,11 @@ struct Fighter {
         : position(pos), front(frnt), rotation(rotation), directionX(directionX), directionY(directionY), movementSpeed(speed), hp(hp) {}
 };
 Fighter fighter_player(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 30.0f, 3);
+// Inicialmente estão 3 estacionados
 std::vector<Fighter> enemies = {
-    Fighter(glm::vec3(543.2f, 54.0f, -33.0f), -camera.Front, 0.0f, camera.Yaw, camera.Pitch, 10.0f, 1),
-    Fighter(glm::vec3(600.0f, 54.0f, -50.0f), -camera.Front, 0.0f, camera.Yaw, camera.Pitch, 10.0f, 1),
-    Fighter(glm::vec3(650.0f, 54.0f, -70.0f), -camera.Front, 0.0f, camera.Yaw, camera.Pitch, 10.0f, 1)
+    Fighter(glm::vec3(1000.0f, 5.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1),
+    Fighter(glm::vec3(900.0f, 5.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1),
+    Fighter(glm::vec3(1000.0f, 5.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1)
 };
 
 // Vertex data
@@ -228,6 +231,7 @@ int main() {
             std::string pontuacaoStr = "Points: " + std::to_string(pontuacao);
             RenderText(vida, SCR_WIDTH - 300.0f, SCR_HEIGHT - 100.0f, 1.0f, textColor, true);
             RenderText(pontuacaoStr, SCR_WIDTH - 300.0f, SCR_HEIGHT - 180.0f, 1.0f, textColor, true);
+            moverInimigos();
         }
         // Em pausa (controlos)
         else if(gameState == 2){
@@ -778,7 +782,9 @@ int loadText(){
  */
 bool checkStart() {
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
+        gameState = 3;
         animacaoSaida();
+        gameState = 1;
         return true;
     }
     return false;
@@ -809,7 +815,58 @@ void animacaoSaida(){
         glfwPollEvents();
     }
     fighter_player.position.y = endY;
-    gameState = 1;
+}
+
+void moverInimigos() {
+    static float lastTime = glfwGetTime();
+    float currentTime = glfwGetTime();
+    float deltaTime = currentTime - lastTime;
+    lastTime = currentTime;
+
+    for (auto it = enemies.begin(); it != enemies.end(); ) {
+        // mover em direção ao player
+        glm::vec3 direction = glm::normalize(fighter_player.position - it->position);
+        glm::vec3 newPosition = it->position + direction * it->movementSpeed * deltaTime;
+
+        // Distância minima ao player
+        if (glm::distance(newPosition, fighter_player.position) >= 50.0f) {
+            it->position = newPosition;
+        }
+
+        // TODO: Verificar se o inimigo está fora do ângulo de visão do player
+        // float angleToPlayer = glm::degrees(atan2(direction.z, direction.x)) - fighter_player.directionX;
+        // if (angleToPlayer < -180.0f) angleToPlayer += 360.0f;
+        // if (angleToPlayer > 180.0f) angleToPlayer -= 360.0f;
+        // if (angleToPlayer < -50.0f || angleToPlayer > 50.0f) {
+        //     // Se o inimigo está fora do ângulo de visão, removê-lo
+        //     it = enemies.erase(it);
+        // } else {
+        //     ++it;
+        // }
+
+        // rodar na direção correta
+        float targetYaw = glm::degrees(atan2(direction.z, direction.x)) + 90.0f;
+        float targetPitch = - glm::degrees(asin(direction.y));
+        it->directionX = glm::mix(it->directionX, targetYaw, deltaTime * 2.0f);
+        it->directionY = glm::mix(it->directionY, targetPitch, deltaTime * 2.0f);
+        it->front = glm::vec3(
+            cos(glm::radians(it->directionY)) * cos(glm::radians(it->directionX)),
+            sin(glm::radians(it->directionY)),
+            cos(glm::radians(it->directionY)) * sin(glm::radians(it->directionX))
+        );
+
+        ++it;
+    }
+
+    // distância minima entre os inimigos
+    for (size_t i = 0; i < enemies.size(); ++i) {
+        for (size_t j = i + 1; j < enemies.size(); ++j) {
+            if (glm::distance(enemies[i].position, enemies[j].position) < 100.0f) {
+                glm::vec3 direction = glm::normalize(enemies[j].position - enemies[i].position);
+                enemies[j].position = enemies[i].position + direction * 100.0f;
+            }
+        }
+    }
 }
 
 /**
@@ -829,7 +886,7 @@ void processInput()
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    if(gameState == 0)
+    if(gameState == 0 || gameState == 3)
         return;
 
     static bool cKeyPressed = false;
@@ -902,7 +959,7 @@ void processInput()
  */
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-    if(gameState == 0 || gameState == 2)
+    if(gameState != 1)
         return;
 
     // if (firstMouse)
@@ -1104,7 +1161,7 @@ void renderScene() {
     // Render inimigos
     for(Fighter enemy : enemies){
         model = glm::translate(glm::mat4(1.0f), enemy.position);
-        model = glm::rotate(model, glm::radians(enemy.directionX + 270), glm::vec3(0.0f, -1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(enemy.directionX), glm::vec3(0.0f, -1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(enemy.directionY), glm::vec3(-1.0f, 0.0f, 0.0f));
         model = glm::rotate(model, glm::radians(enemy.rotation), glm::vec3(0.0f, 0.0f, -1.0f));
         model = glm::scale(model, glm::vec3(3.0f));
