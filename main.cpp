@@ -69,9 +69,12 @@ void RenderText(std::string text, float x, float y, float scale, glm::vec3 color
 bool isColliding(const glm::vec3& pos1, float radius1, const glm::vec3& pos2, float radius2);
 void checkCollisions();
 void renderBoundingBox(glm::vec3 position, float radius, float scaleFactor);
+void renderProjectiles(Shader& shader);
 void shootProjectile(const Fighter& fighter);
 void updateProjectiles(float deltaTime);
+void shootEnemyProjectiles(float deltaTime);
 void setupBoundingBox();
+void createShot(float radius, float height, int segments, unsigned int& VAO, unsigned int& VBO);
 void restartGame();
 
 // Variáveis globais
@@ -148,6 +151,7 @@ std::vector<glm::vec2> texCoords, texCoords2, texCoords3;
 unsigned int lightVBO, lightCubeVAO;
 unsigned int skyboxVAO, skyboxVBO;
 unsigned int boundingBoxVBO, boundingBoxEBO, boundingBoxVAO;
+unsigned int VAOProjectile, numProjectileVertices;
 
 // Skybox texture
 unsigned int cubemapTexture; 
@@ -327,8 +331,13 @@ int main() {
         float currentTime = glfwGetTime();
         float deltaTime = currentTime - lastTime;
 
+        createShot(0.2f, 0.5f, 36, VAOProjectile, numProjectileVertices);
+
         updateProjectiles(deltaTime);
+        shootEnemyProjectiles(deltaTime);
         checkCollisions();
+
+        renderProjectiles(*hitBoxShader);
 
         // Swap buffers and poll IO events
         glfwSwapBuffers(window);
@@ -1412,6 +1421,27 @@ void renderBoundingBox(glm::vec3 position, float radius, float scaleFactor) {
     glEnable(GL_DEPTH_TEST);  // Re-enable depth testing
 }
 
+void renderProjectiles(Shader& shader) {
+    shader.use();
+    shader.setVec3("color", glm::vec3(0.0f, 1.0f, 0.0f)); // Cor verde
+
+    for (const auto& proj : projectiles) {
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), proj.position);
+        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f)); // Escala opcional
+        shader.setMat4("model", model);
+
+        // Configure as matrizes de visão e projeção
+        shader.setMat4("view", camera.GetViewMatrix());
+        shader.setMat4("projection", glm::perspective(glm::radians(camera.Zoom), 
+                            (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 2000.0f));
+
+        glBindVertexArray(VAOProjectile);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 72); // 2 * (36 segmentos)
+        glBindVertexArray(0);
+    }
+}
+
+
 void shootProjectile(const Fighter& fighter) {
     // Define a posição inicial e a direção do projétil
     glm::vec3 projectilePosition = fighter.position + fighter.front * 5.0f; // Ajuste o offset inicial
@@ -1432,6 +1462,25 @@ void updateProjectiles(float deltaTime) {
         return proj.position.z > 1000.0f || proj.position.z < -1000.0f; // Limites arbitrários
     }), projectiles.end());
 }
+
+void shootEnemyProjectiles(float deltaTime) {
+    static float lastShootTime = 0.0f;
+    float currentTime = glfwGetTime();
+
+    // Atira a cada 2 segundos
+    if (currentTime - lastShootTime >= 2.0f) {
+        for (const auto& enemy : enemies) {
+            // Cria um projétil a partir da posição do inimigo
+            glm::vec3 projectilePosition = enemy.position + enemy.front * 5.0f; // Offset inicial
+            glm::vec3 projectileDirection = glm::normalize(fighter_player.position - enemy.position); // Direção para o jogador
+
+            // Adiciona o projétil à lista global
+            projectiles.emplace_back(projectilePosition, projectileDirection, 100.0f, 2.0f);
+        }
+        lastShootTime = currentTime;
+    }
+}
+
 
 void setupBoundingBox() {
     // Defina os vértices da bounding box
@@ -1469,6 +1518,41 @@ void setupBoundingBox() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
+    glBindVertexArray(0);
+}
+
+void createShot(float radius, float height, int segments, unsigned int& VAO, unsigned int& VBO){
+    std::vector<float> shotVertices;
+
+    // Gerar vértices para as tampas superior e inferior
+    for (int i = 0; i <= segments; ++i) {
+        float angle = 2.0f * glm::pi<float>() * i / segments;
+        float x = cos(angle) * radius;
+        float z = sin(angle) * radius;
+
+        // Parte inferior
+        shotVertices.push_back(x); // x
+        shotVertices.push_back(-height / 2.0f); // y
+        shotVertices.push_back(z); // z
+
+        // Parte superior
+        shotVertices.push_back(x); // x
+        shotVertices.push_back(height / 2.0f); // y
+        shotVertices.push_back(z); // z
+    }
+
+    // Configuração do VBO e VAO
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, shotVertices.size() * sizeof(float), shotVertices.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 }
 
