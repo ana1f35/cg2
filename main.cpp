@@ -18,7 +18,6 @@
 #include "include/ft2build.h"
 #include FT_FREETYPE_H
 
-
 // Fighter
 struct Fighter {
     glm::vec3 position;
@@ -62,6 +61,7 @@ void renderScene();
 bool checkStart();
 void animacaoSaida();
 void moverInimigos();
+void animacaoInimigos();
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput();
@@ -88,6 +88,9 @@ unsigned int cameraMode = 0;
 unsigned int gameState = 0;
 int pontuacao = 0;
 
+glm::vec3 hangarPos(0.0f, 0.0f, 0.0f);
+glm::vec3 enemyHangarPos(2000.0f, 0.0f, 0.0f);
+
 // Lighting
 glm::vec3 spotLightPositions[] = {
     glm::vec3(-10.0f, 70.0f, 0.0f),
@@ -102,15 +105,15 @@ glm::vec3 spotLightPositions[] = {
 };
 glm::vec3 pointLightPositions[] = {
     glm::vec3(10.0f, 20.0f, 0.0f),
-    glm::vec3(1000.0f, 20.0f, 0.0f),
-    glm::vec3(500.0f, 60.0f, 100.0f)
+    enemyHangarPos + glm::vec3(0.0f, 20.0f, 0.0f),
+    glm::vec3(500.0f, 60.0f, 100.0f),
+    glm::vec3(600.0f, 200.0f, 100.0f),
+    glm::vec3(1100.0f, 200.0f, 100.0f)
 };
 glm::vec3 starLightColor(0.7f, 0.8f, 1.0f);
+glm::vec3 pointStarLightColor(0.4f, 0.5f, 1.0f);
 glm::vec3 redLightColor(0.8f, 0.0f, 0.0f);
 glm::vec3 blueLightColor(0.0f, 0.0f, 0.8f);
-
-glm::vec3 hangarPos(0.0f, 0.0f, 0.0f);
-glm::vec3 enemyHangarPos(1000.0f, 0.0f, 0.0f);
 
 // Camera
 Camera camera(glm::vec3(0.0f, 0.0f, 0.0f));
@@ -121,9 +124,12 @@ bool firstMouse = true;
 Fighter fighter_player(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 30.0f, 3, 10.0f);
 // Inicialmente estão 3 estacionados
 std::vector<Fighter> enemies = {
-    Fighter(glm::vec3(1000.0f, 5.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1, 10.0f),
-    Fighter(glm::vec3(900.0f, 5.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1, 10.0f),
-    Fighter(glm::vec3(1000.0f, 5.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1, 10.0f)
+    Fighter(glm::vec3(750.0f, 30.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
+    Fighter(glm::vec3(600.0f, 20.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
+    Fighter(glm::vec3(800.0f, 30.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
+
+    Fighter(glm::vec3(1900.0f, 100.0f, -300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 8.0f, 1, 10.0f),
+    Fighter(glm::vec3(2000.0f, 100.0f, 300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 8.0f, 1, 10.0f)
 };
 
 std::vector<Projectile> projectiles;
@@ -268,6 +274,17 @@ int main() {
                 gameState = 4;
             else if (fighter_player.hp == 0)
                 gameState = 4;
+
+            // Spwan de inimigos -- deve parar se o player estiver perto do final
+            static float lastSpawnTime = glfwGetTime();
+            float currentSpawnTime = glfwGetTime();
+            if (currentSpawnTime - lastSpawnTime >= 10.0f && fighter_player.position.x < enemyHangarPos.x - 500) {
+                enemies.push_back(Fighter(enemyHangarPos + glm::vec3(0.0f, 5.0f, -80.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
+                enemies.push_back(Fighter(enemyHangarPos + glm::vec3(-100.0f, 5.0f, 0.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
+                enemies.push_back(Fighter(enemyHangarPos + glm::vec3(0.0f, 5.0f, 80.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
+                animacaoInimigos();
+                lastSpawnTime = currentSpawnTime;
+            }
         }
         // Em pausa (controlos)
         else if(gameState == 2){
@@ -818,16 +835,12 @@ bool checkStart() {
  * @param lightingShader Referência ao shader usado para iluminação na cena.
  */
 void animacaoSaida(){
-    float startY = fighter_player.position.y;
-    float endY = 20.0f;
-    float duration = 2.0f; // duration in seconds
-    float startTime = glfwGetTime();
-    
-    while (glfwGetTime() - startTime < duration) {
-        float currentTime = glfwGetTime();
-        float t = (currentTime - startTime) / duration;
-        fighter_player.position.y = glm::mix(startY, endY, t);
-        
+    float targetY = 20.0f;
+    float speed = 0.5f; // speed of the animation
+
+    while (fighter_player.position.y > targetY) {
+        fighter_player.position.y -= speed; // increment position by speed
+
         // Render scene
         renderScene();
 
@@ -835,24 +848,20 @@ void animacaoSaida(){
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-    fighter_player.position.y = endY;
+    fighter_player.position.y = targetY;
 }
 
 void moverInimigos() {
-    static float lastTime = glfwGetTime();
-    float currentTime = glfwGetTime();
-    float deltaTime = currentTime - lastTime;
-    lastTime = currentTime;
-
     for (auto it = enemies.begin(); it != enemies.end(); ) {
         // mover em direção ao player
         glm::vec3 direction = glm::normalize(fighter_player.position - it->position);
-        glm::vec3 newPosition = it->position + direction * it->movementSpeed * deltaTime;
+        glm::vec3 newPosition = it->position + direction * it->movementSpeed * 0.5f;
+        it->position = newPosition;
 
-        // Distância minima ao player
-        if (glm::distance(newPosition, fighter_player.position) >= 50.0f) {
-            it->position = newPosition;
-        }
+        // Se colidiu morreu
+        // if (glm::distance(newPosition, fighter_player.position) < 10.0f) {
+        //     it = enemies.erase(it);
+        // }
 
         // TODO: Verificar se o inimigo está fora do ângulo de visão do player
         // float angleToPlayer = glm::degrees(atan2(direction.z, direction.x)) - fighter_player.directionX;
@@ -866,10 +875,10 @@ void moverInimigos() {
         // }
 
         // rodar na direção correta
-        float targetYaw = glm::degrees(atan2(direction.z, direction.x)) + 90.0f;
+        float targetYaw = glm::degrees(atan2(direction.z, direction.x)) + 180;
         float targetPitch = - glm::degrees(asin(direction.y));
-        it->directionX = glm::mix(it->directionX, targetYaw, deltaTime * 2.0f);
-        it->directionY = glm::mix(it->directionY, targetPitch, deltaTime * 2.0f);
+        it->directionX = glm::mix(it->directionX, targetYaw, 0.5f);
+        it->directionY = glm::mix(it->directionY, targetPitch, 0.5f);
         it->front = glm::vec3(
             cos(glm::radians(it->directionY)) * cos(glm::radians(it->directionX)),
             sin(glm::radians(it->directionY)),
@@ -886,6 +895,27 @@ void moverInimigos() {
                 glm::vec3 direction = glm::normalize(enemies[j].position - enemies[i].position);
                 enemies[j].position = enemies[i].position + direction * 100.0f;
             }
+        }
+    }
+}
+
+void animacaoInimigos(){
+    float targetY = 20.0f;
+    float speed = 0.5f; // speed of the animation
+
+    for (std::vector<Fighter>::size_type i = enemies.size() - 4; i < enemies.size(); i++) {
+        if (enemies[i].position.y < targetY) {
+            while (enemies[i].position.y < targetY) {
+                enemies[i].position.y += speed; // increment position by speed
+
+                // Render scene
+                renderScene();
+
+                // Swap buffers and poll IO events
+                glfwSwapBuffers(window);
+                glfwPollEvents();
+            }
+            enemies[i].position.y = targetY;
         }
     }
 }
@@ -1111,7 +1141,7 @@ void renderScene() {
 
     // directional light
     lightingShader->setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
-    lightingShader->setVec3("dirLight.ambient", starLightColor * glm::vec3(0.05f));
+    lightingShader->setVec3("dirLight.ambient", starLightColor * glm::vec3(0.1f));
     lightingShader->setVec3("dirLight.diffuse", starLightColor * glm::vec3(0.5f));
     lightingShader->setVec3("dirLight.specular", 0.7f, 0.7f, 0.7f);
 
@@ -1133,12 +1163,28 @@ void renderScene() {
     lightingShader->setFloat("pointLights[1].quadratic", 0.0001f);
     // point light 3
     lightingShader->setVec3("pointLights[2].position", pointLightPositions[2]);
-    lightingShader->setVec3("pointLights[2].ambient", blueLightColor * glm::vec3(0.5f));
-    lightingShader->setVec3("pointLights[2].diffuse", blueLightColor * glm::vec3(1.5f));
-    lightingShader->setVec3("pointLights[2].specular", 1.0f, 1.0f, 1.0f);
+    lightingShader->setVec3("pointLights[2].ambient", pointStarLightColor * glm::vec3(0.5f));
+    lightingShader->setVec3("pointLights[2].diffuse", pointStarLightColor * glm::vec3(1.0f));
+    lightingShader->setVec3("pointLights[2].specular", 0.5f, 0.5f, 0.5f);
     lightingShader->setFloat("pointLights[2].constant", 1.0f);
     lightingShader->setFloat("pointLights[2].linear", 0.001f);
     lightingShader->setFloat("pointLights[2].quadratic", 0.00005f);
+    // point light 4
+    lightingShader->setVec3("pointLights[3].position", pointLightPositions[3]);
+    lightingShader->setVec3("pointLights[2].ambient", pointStarLightColor * glm::vec3(0.5f));
+    lightingShader->setVec3("pointLights[2].diffuse", pointStarLightColor * glm::vec3(1.0f));
+    lightingShader->setVec3("pointLights[3].specular", 0.8f, 0.8f, 1.0f);
+    lightingShader->setFloat("pointLights[3].constant", 1.0f);
+    lightingShader->setFloat("pointLights[3].linear", 0.001f);
+    lightingShader->setFloat("pointLights[3].quadratic", 0.00005f);
+    // point light 5
+    lightingShader->setVec3("pointLights[4].position", pointLightPositions[4]);
+    lightingShader->setVec3("pointLights[2].ambient", pointStarLightColor * glm::vec3(0.5f));
+    lightingShader->setVec3("pointLights[2].diffuse", pointStarLightColor * glm::vec3(1.0f));
+    lightingShader->setVec3("pointLights[4].specular", 0.8f, 0.8f, 1.0f);
+    lightingShader->setFloat("pointLights[4].constant", 1.0f);
+    lightingShader->setFloat("pointLights[4].linear", 0.001f);
+    lightingShader->setFloat("pointLights[4].quadratic", 0.00005f);
 
     // spot lights
     int i = 0;
@@ -1158,7 +1204,7 @@ void renderScene() {
     // spot lights do segundo hangar
     i = 9;
     for (glm::vec3 pos : spotLightPositions) {
-        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].position", (pos + glm::vec3(1020.0f, 0.0f, 0.0f)));
+        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].position", (pos + enemyHangarPos + glm::vec3(20.0f, 0.0f, 0.0f)));
         lightingShader->setVec3("spotLights[" + std::to_string(i) + "].direction", glm::vec3(0.0f, -1.0f, 0.0f));
         lightingShader->setFloat("spotLights[" + std::to_string(i) + "].cutOff", glm::cos(glm::radians(25.0f)));
         lightingShader->setFloat("spotLights[" + std::to_string(i) + "].outerCutOff", glm::cos(glm::radians(40.0f)));
@@ -1204,12 +1250,12 @@ void renderScene() {
     // Render inimigos
     for(Fighter enemy : enemies){
         model = glm::translate(glm::mat4(1.0f), enemy.position);
-        model = glm::rotate(model, glm::radians(enemy.directionX), glm::vec3(0.0f, -1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(enemy.directionX + 270), glm::vec3(0.0f, -1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(enemy.directionY), glm::vec3(-1.0f, 0.0f, 0.0f));
         model = glm::rotate(model, glm::radians(enemy.rotation), glm::vec3(0.0f, 0.0f, -1.0f));
         model = glm::scale(model, glm::vec3(4.0f));
-        lightingShader->setVec3("material.ambient", 0.2f, 0.2f, 0.2f);
-        lightingShader->setVec3("material.diffuse", 0.3f, 0.3f, 0.3f);
+        lightingShader->setVec3("material.ambient", 0.3f, 0.3f, 0.3f);
+        lightingShader->setVec3("material.diffuse", 0.4f, 0.4f, 0.4f);
         lightingShader->setVec3("material.specular", 0.5f, 0.5f, 0.5f);
         lightingShader->setFloat("material.shininess", 32.0f);
         lightingShader->setMat4("model", model);
@@ -1230,7 +1276,7 @@ void renderScene() {
     }
 
     for(glm::vec3 pos : spotLightPositions){
-        model = glm::translate(glm::mat4(1.0f), (pos + glm::vec3(1020.0f, 0.0f, 0.0f)));
+        model = glm::translate(glm::mat4(1.0f), (pos + enemyHangarPos + glm::vec3(20.0f, 0.0f, 0.0f)));
         model = glm::scale(model, glm::vec3(2.0f));
         lightingCubeShader->setMat4("model", model);
         glBindVertexArray(lightCubeVAO);
