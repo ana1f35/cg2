@@ -68,9 +68,10 @@ void processInput();
 void RenderText(std::string text, float x, float y, float scale, glm::vec3 color, bool useFirstFont);
 bool isColliding(const glm::vec3& pos1, float radius1, const glm::vec3& pos2, float radius2);
 void checkCollisions();
-void renderBoundingBox(const Shader& shader);
+void renderBoundingBox(glm::vec3 position, float radius);
 void shootProjectile(const Fighter& fighter);
 void updateProjectiles(float deltaTime);
+void setupBoundingBox();
 
 // Variáveis globais
 unsigned int SCR_WIDTH = 800;
@@ -80,14 +81,11 @@ Shader* skyboxShader;
 Shader* lightingShader;
 Shader* lightingCubeShader;
 Shader* textShader;
+Shader* hitBoxShader;
 
 unsigned int cameraMode = 0;
 unsigned int gameState = 0;
 int pontuacao = 0;
-
-static float lastTime = glfwGetTime();
-float currentTime = glfwGetTime();
-float deltaTime = currentTime - lastTime;
 
 // Lighting
 glm::vec3 spotLightPositions[] = {
@@ -139,7 +137,7 @@ unsigned int VBO3, VAO3, NBO3, TBO3;
 std::vector<glm::vec2> texCoords, texCoords2, texCoords3;
 unsigned int lightVBO, lightCubeVAO;
 unsigned int skyboxVAO, skyboxVBO;
-unsigned int numSphereVertices, VAOSphere;
+unsigned int boundingBoxVBO, boundingBoxEBO, boundingBoxVAO;
 
 // Skybox texture
 unsigned int cubemapTexture; 
@@ -225,9 +223,11 @@ int main() {
     lightingCubeShader = new Shader("shaders/lamp.vs", "shaders/lamp.fs");
     textShader = new Shader("shaders/text.vs", "shaders/text.fs");
     skyboxShader = new Shader("shaders/skybox.vs", "shaders/skybox.fs");
+    hitBoxShader = new Shader("shaders/hitbox.vs", "shaders/hitbox.fs");
     
     // Setup skybox and load texture
     setupSkybox();
+    setupBoundingBox();
     cubemapTexture = loadCubemap(faces);
     
     // Set skybox shader uniforms
@@ -281,6 +281,10 @@ int main() {
             float textWidth7 = controlsText7.length() * 25.0f;
             RenderText(controlsText7, (SCR_WIDTH - textWidth7) / 2.0f, SCR_HEIGHT / 2.0f - 250.0f, 1.0f, textColor, true);
         }
+
+        static float lastTime = glfwGetTime();
+        float currentTime = glfwGetTime();
+        float deltaTime = currentTime - lastTime;
 
         updateProjectiles(deltaTime);
         checkCollisions();
@@ -847,6 +851,9 @@ void animacaoSaida(){
 }
 
 void moverInimigos() {
+    static float lastTime = glfwGetTime();
+    float currentTime = glfwGetTime();
+    float deltaTime = currentTime - lastTime;
     lastTime = currentTime;
 
     for (auto it = enemies.begin(); it != enemies.end(); ) {
@@ -1245,7 +1252,15 @@ void renderScene() {
     
     glDepthFunc(GL_LESS); // Restore depth function
 
-    renderBoundingBox(*lightingShader);
+    glm::vec3 position = fighter_player.position;
+    float radius = fighter_player.collisionRadius;
+
+    renderBoundingBox(position, radius);
+
+    // Renderizar bounding boxes para os inimigos
+    for (const auto& enemy : enemies) {
+        renderBoundingBox(enemy.position, enemy.collisionRadius);
+    }
 
 }
 
@@ -1326,16 +1341,30 @@ for (auto& enemy : enemies) {
     }), projectiles.end());
 }
 
-void renderBoundingBox(const Shader& shader) {
-    for (const auto& enemy : enemies) {
-        glm::mat4 model = glm::translate(glm::mat4(1.0f), enemy.position);
-        model = glm::scale(model, glm::vec3(enemy.collisionRadius * 2.0f)); // Escala para representar o raio
-        shader.setMat4("model", model);
+void renderBoundingBox(glm::vec3 position, float radius) {
+    std::cout << "Rendering bounding box at position: " 
+              << position.x << ", " << position.y << ", " << position.z 
+              << " with radius: " << radius << std::endl;
 
-        // Renderize uma esfera representando a bounding sphere
-        glBindVertexArray(VAOSphere);
-        glDrawArrays(GL_TRIANGLES, 0, numSphereVertices);
-    }
+    glDisable(GL_DEPTH_TEST);  // Disable depth testing
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);  // Wire frame mode
+
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), position);
+    model = glm::scale(model, glm::vec3(radius));
+
+    hitBoxShader->use();
+    hitBoxShader->setMat4("model", model);
+    hitBoxShader->setMat4("view", camera.GetViewMatrix());
+    hitBoxShader->setMat4("projection", glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 2000.0f));
+    hitBoxShader->setVec3("boxColor", glm::vec3(1.0f, 0.0f, 0.0f));
+
+    glBindVertexArray(boundingBoxVAO);
+    glLineWidth(2.0f);  // Make lines thicker
+    glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);  // Restore fill mode
+    glEnable(GL_DEPTH_TEST);  // Re-enable depth testing
 }
 
 void shootProjectile(const Fighter& fighter) {
@@ -1357,4 +1386,43 @@ void updateProjectiles(float deltaTime) {
     projectiles.erase(std::remove_if(projectiles.begin(), projectiles.end(), [](const Projectile& proj) {
         return proj.position.z > 1000.0f || proj.position.z < -1000.0f; // Limites arbitrários
     }), projectiles.end());
+}
+
+void setupBoundingBox() {
+    // Defina os vértices da bounding box
+    float boundingBoxVertices[] = {
+        // Define the vertices for the bounding box (a cube)
+        -1.0f, -1.0f, -1.0f,
+         1.0f, -1.0f, -1.0f,
+         1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,
+        -1.0f, -1.0f,  1.0f,
+         1.0f, -1.0f,  1.0f,
+         1.0f,  1.0f,  1.0f,
+        -1.0f,  1.0f,  1.0f,
+    };
+
+    // Defina os índices para desenhar as linhas da bounding box
+    unsigned int boundingBoxIndices[] = {
+        0, 1, 1, 2, 2, 3, 3, 0,
+        4, 5, 5, 6, 6, 7, 7, 4,
+        0, 4, 1, 5, 2, 6, 3, 7
+    };
+
+    glGenVertexArrays(1, &boundingBoxVAO);
+    glGenBuffers(1, &boundingBoxVBO);
+    glGenBuffers(1, &boundingBoxEBO);
+
+    glBindVertexArray(boundingBoxVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, boundingBoxVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(boundingBoxVertices), boundingBoxVertices, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, boundingBoxEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(boundingBoxIndices), boundingBoxIndices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(0);
 }
