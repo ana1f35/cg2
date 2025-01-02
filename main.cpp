@@ -114,7 +114,7 @@ glm::vec3 pointLightPositions[] = {
     glm::vec3(1100.0f, 200.0f, 100.0f)
 };
 glm::vec3 starLightColor(0.7f, 0.8f, 1.0f);
-glm::vec3 pointStarLightColor(0.4f, 0.5f, 1.0f);
+glm::vec3 pointStarLightColor(0.3f, 0.4f, 1.0f);
 glm::vec3 redLightColor(0.8f, 0.0f, 0.0f);
 glm::vec3 blueLightColor(0.0f, 0.0f, 0.8f);
 
@@ -287,6 +287,7 @@ int main() {
                 enemies.push_back(Fighter(enemyHangarPos + glm::vec3(-100.0f, 5.0f, 0.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
                 enemies.push_back(Fighter(enemyHangarPos + glm::vec3(0.0f, 5.0f, 80.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
                 animacaoInimigos();
+                lastSpawnTime = currentSpawnTime;
             }
         }
         // Em pausa (controlos)
@@ -914,7 +915,13 @@ void animacaoInimigos(){
     for (std::vector<Fighter>::size_type i = enemies.size() - 4; i < enemies.size(); i++) {
         if (enemies[i].position.y < targetY) {
             while (enemies[i].position.y < targetY) {
-                enemies[i].position.y += speed; // increment position by speed
+                processInput();
+                std::string vida = "Health: " + std::to_string(fighter_player.hp);
+                std::string pontuacaoStr = "Points: " + std::to_string(pontuacao);
+                RenderText(vida, SCR_WIDTH - 300.0f, SCR_HEIGHT - 100.0f, 1.0f, textColor, true);
+                RenderText(pontuacaoStr, SCR_WIDTH - 300.0f, SCR_HEIGHT - 180.0f, 1.0f, textColor, true);
+
+                enemies[i].position.y += speed;
 
                 // Render scene
                 renderScene();
