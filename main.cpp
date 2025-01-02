@@ -1427,7 +1427,7 @@ void renderProjectiles(Shader& shader) {
 
     for (const auto& proj : projectiles) {
         glm::mat4 model = glm::translate(glm::mat4(1.0f), proj.position);
-        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f)); // Escala opcional
+        model = glm::scale(model, glm::vec3(proj.collisionRadius));
         shader.setMat4("model", model);
 
         // Configure as matrizes de visão e projeção
@@ -1436,20 +1436,27 @@ void renderProjectiles(Shader& shader) {
                             (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 2000.0f));
 
         glBindVertexArray(VAOProjectile);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 72); // 2 * (36 segmentos)
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, numProjectileVertices); // 2 * (36 segmentos)
         glBindVertexArray(0);
     }
 }
 
 
 void shootProjectile(const Fighter& fighter) {
-    // Define a posição inicial e a direção do projétil
-    glm::vec3 projectilePosition = fighter.position + fighter.front * 5.0f; // Ajuste o offset inicial
-    glm::vec3 projectileDirection = fighter.front;
-    float projectileSpeed = 100.0f; // Velocidade do projétil
-    float collisionRadius = 2.0f;  // Raio de colisão
-
-    projectiles.emplace_back(projectilePosition, projectileDirection, projectileSpeed, collisionRadius);
+    // Spawn projectile from fighter's nose
+    glm::vec3 spawnOffset = fighter.front * 20.0f; // Increase offset to spawn further from fighter
+    glm::vec3 projectilePosition = fighter.position + spawnOffset;
+    
+    // Use fighter's front direction for projectile
+    Projectile proj(
+        projectilePosition,    // position
+        fighter.front,         // direction 
+        200.0f,               // Increased speed
+        5.0f                  // Increased collision radius
+    );
+    
+    projectiles.push_back(proj);
+    std::cout << "Shot fired from: " << projectilePosition.x << "," << projectilePosition.y << "," << projectilePosition.z << std::endl;
 }
 
 void updateProjectiles(float deltaTime) {
