@@ -283,7 +283,6 @@ int main() {
                 enemies.push_back(Fighter(enemyHangarPos + glm::vec3(-100.0f, 5.0f, 0.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
                 enemies.push_back(Fighter(enemyHangarPos + glm::vec3(0.0f, 5.0f, 80.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
                 animacaoInimigos();
-                lastSpawnTime = currentSpawnTime;
             }
         }
         // Em pausa (controlos)
@@ -982,7 +981,7 @@ void processInput()
 
     // Move forward with smooth acceleration
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        if (fighter_player.movementSpeed < 50.0f) {
+        if (fighter_player.movementSpeed < 100.0f) {
             fighter_player.movementSpeed += 50.0f;
         }
         lastPressTime = glfwGetTime();
