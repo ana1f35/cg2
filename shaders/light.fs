@@ -43,7 +43,7 @@ struct SpotLight {
     vec3 specular;       
 };
 
-#define NR_POINT_LIGHTS 3
+#define NR_POINT_LIGHTS 7
 #define NR_SPOT_LIGHTS 18
 
 in vec3 Normal;  
