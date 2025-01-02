@@ -68,7 +68,7 @@ void processInput();
 void RenderText(std::string text, float x, float y, float scale, glm::vec3 color, bool useFirstFont);
 bool isColliding(const glm::vec3& pos1, float radius1, const glm::vec3& pos2, float radius2);
 void checkCollisions();
-void renderBoundingBox(glm::vec3 position, float radius);
+void renderBoundingBox(glm::vec3 position, float radius, float scaleFactor);
 void shootProjectile(const Fighter& fighter);
 void updateProjectiles(float deltaTime);
 void setupBoundingBox();
@@ -1255,11 +1255,11 @@ void renderScene() {
     glm::vec3 position = fighter_player.position;
     float radius = fighter_player.collisionRadius;
 
-    renderBoundingBox(position, radius);
+    renderBoundingBox(position, radius, 1.0);
 
     // Renderizar bounding boxes para os inimigos
     for (const auto& enemy : enemies) {
-        renderBoundingBox(enemy.position, enemy.collisionRadius);
+        renderBoundingBox(enemy.position, enemy.collisionRadius, 1.2);
     }
 
 }
@@ -1341,7 +1341,7 @@ for (auto& enemy : enemies) {
     }), projectiles.end());
 }
 
-void renderBoundingBox(glm::vec3 position, float radius) {
+void renderBoundingBox(glm::vec3 position, float radius, float scaleFactor) {
     std::cout << "Rendering bounding box at position: " 
               << position.x << ", " << position.y << ", " << position.z 
               << " with radius: " << radius << std::endl;
@@ -1350,7 +1350,7 @@ void renderBoundingBox(glm::vec3 position, float radius) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);  // Wire frame mode
 
     glm::mat4 model = glm::translate(glm::mat4(1.0f), position);
-    model = glm::scale(model, glm::vec3(radius));
+    model = glm::scale(model, glm::vec3(radius * scaleFactor));
 
     hitBoxShader->use();
     hitBoxShader->setMat4("model", model);
