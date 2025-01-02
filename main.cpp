@@ -72,6 +72,7 @@ void renderBoundingBox(glm::vec3 position, float radius);
 void shootProjectile(const Fighter& fighter);
 void updateProjectiles(float deltaTime);
 void setupBoundingBox();
+void restartGame();
 
 // Variáveis globais
 unsigned int SCR_WIDTH = 800;
@@ -107,6 +108,9 @@ glm::vec3 pointLightPositions[] = {
 glm::vec3 starLightColor(0.7f, 0.8f, 1.0f);
 glm::vec3 redLightColor(0.8f, 0.0f, 0.0f);
 glm::vec3 blueLightColor(0.0f, 0.0f, 0.8f);
+
+glm::vec3 hangarPos(0.0f, 0.0f, 0.0f);
+glm::vec3 enemyHangarPos(1000.0f, 0.0f, 0.0f);
 
 // Camera
 Camera camera(glm::vec3(0.0f, 0.0f, 0.0f));
@@ -243,13 +247,13 @@ int main() {
         processInput();
         renderScene();
         if(gameState == 0){
-            checkStart();
-            const std::string titulo = "- War of the Stars -";
+            const std::string titulo = "- War of StArs -";
             const std::string iniciar = "Press SPACE To Start";
             float textWidth2 = titulo.length() * 42.0f; 
             RenderText(titulo, (SCR_WIDTH - textWidth2) / 2.0f, SCR_HEIGHT / 2.0f + 50.0f, 1.0f, textColor, false);
             float textWidth = iniciar.length() * 25.0f; 
             RenderText(iniciar, (SCR_WIDTH - textWidth) / 2.0f, SCR_HEIGHT / 2.0f - 50.0f, 1.0f, textColor, true);
+            checkStart();
         }
         // Durante o jogo mostra: vida e pontuação
         else if(gameState == 1){
@@ -258,6 +262,12 @@ int main() {
             RenderText(vida, SCR_WIDTH - 300.0f, SCR_HEIGHT - 100.0f, 1.0f, textColor, true);
             RenderText(pontuacaoStr, SCR_WIDTH - 300.0f, SCR_HEIGHT - 180.0f, 1.0f, textColor, true);
             moverInimigos();
+
+            // o jogo termina se o player ficou sem vida, ou se já chegou ao hangar inimigo
+            if(fighter_player.position.x >= enemyHangarPos.x - 100)
+                gameState = 4;
+            else if (fighter_player.hp == 0)
+                gameState = 4;
         }
         // Em pausa (controlos)
         else if(gameState == 2){
@@ -280,6 +290,21 @@ int main() {
             RenderText(controlsText6, (SCR_WIDTH - textWidth6) / 2.0f, SCR_HEIGHT / 2.0f - 150.0f, 1.0f,  textColor, true);
             float textWidth7 = controlsText7.length() * 25.0f;
             RenderText(controlsText7, (SCR_WIDTH - textWidth7) / 2.0f, SCR_HEIGHT / 2.0f - 250.0f, 1.0f, textColor, true);
+        }
+        // Terminado
+        else if(gameState == 4){
+            std::string gameOver = "Game over";
+            std::string finalScore = "Final Score: " + std::to_string(pontuacao);
+            std::string finalHealth = "HP Left: " + std::to_string(fighter_player.hp);
+            std::string restart = "Press SPACE To Restart";
+            float gameOverWidth = gameOver.length() * 48.0f;
+            RenderText(gameOver, (SCR_WIDTH - gameOverWidth) / 2.0f, SCR_HEIGHT / 2.0f + 100.0f, 1.0f, textColor, false);
+            float scoreWidth = finalScore.length() * 25.0f;
+            RenderText(finalScore, (SCR_WIDTH - scoreWidth) / 2.0f, SCR_HEIGHT / 2.0f, 1.0f, textColor, true);
+            float healthWidth = finalHealth.length() * 25.0f;
+            RenderText(finalHealth, (SCR_WIDTH - healthWidth) / 2.0f, SCR_HEIGHT / 2.0f - 100.0f, 1.0f, textColor, true);
+            float restartWidth = restart.length() * 25.0f;
+            RenderText(restart, (SCR_WIDTH - restartWidth) / 2.0f, SCR_HEIGHT / 2.0f - 200.0f, 1.0f, textColor, true);
         }
 
         static float lastTime = glfwGetTime();
@@ -316,43 +341,6 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glfwTerminate();
     return 0;
-}
-
-unsigned int loadTexture(char const * path)
-{
-    unsigned int textureID;
-    glGenTextures(1, &textureID);
-
-    int width, height, nrComponents;
-    unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
-    if (data)
-    {
-        GLenum format;
-        if (nrComponents == 1)
-            format = GL_RED;
-        else if (nrComponents == 3)
-            format = GL_RGB;
-        else if (nrComponents == 4)
-            format = GL_RGBA;
-
-        glBindTexture(GL_TEXTURE_2D, textureID);
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        stbi_image_free(data);
-    }
-    else
-    {
-        std::cout << "Texture failed to load at path: " << path << std::endl;
-        stbi_image_free(data);
-    }
-
-    return textureID;
 }
 
 /**
@@ -922,6 +910,14 @@ void processInput()
     if(gameState == 0 || gameState == 3)
         return;
 
+    if(gameState == 4){
+        if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
+            restartGame();
+            gameState = 1;
+        }
+        return;
+    }
+
     static bool cKeyPressed = false;
     if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
         if (!cKeyPressed) {
@@ -963,10 +959,10 @@ void processInput()
     }
     // Move backward with smooth deceleration
     else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        if (fighter_player.movementSpeed > 20.0f) {
+        if (fighter_player.movementSpeed > 30.0f) {
             fighter_player.movementSpeed -= 5.0f;
         } else {
-            fighter_player.movementSpeed = 20.0f; // Minimum speed
+            fighter_player.movementSpeed = 30.0f; // Minimum speed
         }
     }
     else {
@@ -1184,8 +1180,8 @@ void renderScene() {
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, vertices.size());
     };
-    renderHangar(glm::vec3(0.0f, 0.0f, 0.0f), 0.0f);
-    renderHangar(glm::vec3(1000.0f, 0.0f, 0.0f), 180.0f);
+    renderHangar(hangarPos, 0.0f);
+    renderHangar(enemyHangarPos, 180.0f);
 
     // Render fighter
     glm::mat4 model = glm::translate(glm::mat4(1.0f), fighter_player.position);
@@ -1425,4 +1421,20 @@ void setupBoundingBox() {
     glEnableVertexAttribArray(0);
 
     glBindVertexArray(0);
+}
+
+void restartGame(){
+    cameraMode = 0;
+    pontuacao = 0;
+    // Inicialmente estão 3 estacionados
+    enemies = {
+        Fighter(glm::vec3(1000.0f, 5.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1, 10.0f),
+        Fighter(glm::vec3(900.0f, 5.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1, 10.0f),
+        Fighter(glm::vec3(1000.0f, 5.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1, 10.0f)
+    };
+
+    camera = glm::vec3(0.0f, 0.0f, 0.0f);
+    fighter_player = Fighter(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 30.0f, 3, 10.0f);
+
+    animacaoSaida();
 }
