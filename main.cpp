@@ -1028,6 +1028,10 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 
     // Update the camera's direction based on mouse input
     camera.ProcessMouseMovement(xoffset, yoffset);
+    if (camera.Yaw > 50.0f)
+        camera.Yaw = 50.0f;
+    if (camera.Yaw < -50.0f)
+        camera.Yaw = -50.0f;
 
     // Update the direction of the fighter_player based on the camera
     fighter_player.front = camera.Front;

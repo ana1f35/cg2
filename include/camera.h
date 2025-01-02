@@ -86,15 +86,7 @@ public:
         xoffset *= MouseSensitivity;
         yoffset *= MouseSensitivity;
 
-        // const float smoothingFactor = 0.1f; // Adjust this value to control how smooth the camera transitions
-        // Yaw = glm::mix(Yaw, Yaw - xoffset, smoothingFactor);
-        // Pitch = glm::mix(Pitch, Pitch + yoffset, smoothingFactor);
         Yaw += xoffset;
-        if (Yaw > 50.0f)
-            Yaw = 50.0f;
-        if (Yaw < -50.0f)
-            Yaw = -50.0f;
-            
         Pitch += yoffset;
         // Make sure that when pitch is out of bounds, screen doesn't get flipped
         if (constrainPitch)
@@ -120,7 +112,6 @@ public:
             Zoom = 45.0f;
     }
 
-private:
     // Calculates the front vector from the Camera's (updated) Euler Angles
     void updateCameraVectors()
     {
