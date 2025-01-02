@@ -912,26 +912,31 @@ void animacaoInimigos(){
     float targetY = 20.0f;
     float speed = 0.5f; // speed of the animation
 
-    for (std::vector<Fighter>::size_type i = enemies.size() - 4; i < enemies.size(); i++) {
-        if (enemies[i].position.y < targetY) {
-            while (enemies[i].position.y < targetY) {
-                processInput();
-                std::string vida = "Health: " + std::to_string(fighter_player.hp);
-                std::string pontuacaoStr = "Points: " + std::to_string(pontuacao);
-                RenderText(vida, SCR_WIDTH - 300.0f, SCR_HEIGHT - 100.0f, 1.0f, textColor, true);
-                RenderText(pontuacaoStr, SCR_WIDTH - 300.0f, SCR_HEIGHT - 180.0f, 1.0f, textColor, true);
-
+    bool allEnemiesAtTarget = false;
+    while (!allEnemiesAtTarget) {
+        allEnemiesAtTarget = true;
+        for (std::vector<Fighter>::size_type i = enemies.size() - 4; i < enemies.size(); i++) {
+            if (enemies[i].position.y < targetY) {
                 enemies[i].position.y += speed;
-
-                // Render scene
-                renderScene();
-
-                // Swap buffers and poll IO events
-                glfwSwapBuffers(window);
-                glfwPollEvents();
+                if (enemies[i].position.y > targetY) {
+                    enemies[i].position.y = targetY;
+                }
+                allEnemiesAtTarget = false;
             }
-            enemies[i].position.y = targetY;
         }
+
+        processInput();
+        renderScene();
+
+        // Render text
+        std::string vida = "Health: " + std::to_string(fighter_player.hp);
+        std::string pontuacaoStr = "Points: " + std::to_string(pontuacao);
+        RenderText(vida, SCR_WIDTH - 300.0f, SCR_HEIGHT - 100.0f, 1.0f, textColor, true);
+        RenderText(pontuacaoStr, SCR_WIDTH - 300.0f, SCR_HEIGHT - 180.0f, 1.0f, textColor, true);
+
+        // Swap buffers and poll IO events
+        glfwSwapBuffers(window);
+        glfwPollEvents();
     }
 }
 
