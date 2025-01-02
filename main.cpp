@@ -77,7 +77,7 @@ void setupBoundingBox();
 void createShot(float radius, float height, int segments, unsigned int& VAO, unsigned int& VBO);
 void restartGame();
 
-// Variáveis globais
+// Variáveis globai
 unsigned int SCR_WIDTH = 800;
 unsigned int SCR_HEIGHT = 600;
 GLFWwindow* window;
