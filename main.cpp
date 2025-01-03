@@ -1808,26 +1808,26 @@ void renderIntro(){
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     const std::string introText[] = {
-        "The   Rebel   Alliance,   battered   but   defiant   has,",
-        "established   a   hidden   staging     ground    in   the",
-        "remote   Outer   Rim.   But   the   relentless Imperial  ",
-        "Fleet,   under   the  command  of  the  cunning  Grand   ",
-        "Admiral   Thrawn,   has    discovered   their   location.",
-        "Imperial   intelligence   has    uncovered   a   critical",
-        "weakness   in   the   Rebel   defenses:   the  vulnerable",
-        "hangar   bay   of   the   Cruiser   Liberator.  A   swift",
-        "strike  against  this   crucial  vessel   could   cripple",
-        "the   Rebel  fleet   before  it  can  launch  a  counter-",
-        "offensive. Now,  as  the   Imperial  armada   descends   ",
-        "from   the   stars,   the    fate    of   the   Rebellion",
-        "hangs   in   the   balance . . .                         "
+        "The   Rebel   Alliance,   battered   but   defiant   has,     ",
+        "established   a   hidden   staging     ground    in   the     ",
+        "remote   Outer   Rim.   But   the   relentless Imperial       ",
+        "Fleet,   under  the  command  of  the  cunning  Grand         ",
+        "Admiral   Thrawn,   has   discovered   their   location.      ",
+        "Imperial    intelligence   has    uncovered   a   critical    ",
+        "weakness   in  the   Rebel  defenses:  the  vulnerable        ",
+        "hangar   bay   of   the   Cruiser   Liberator.   A    swift   ",
+        "strike   against  this   crucial   vessel   could   cripple   ",
+        "the   Rebel  fleet   before   it  can  launch  a  counter-    ",
+        "offensive. Now,  as  the   Imperial  armada  descends         ",
+        "from    the     stars,   the    fate    of   the     Rebellion",
+        "hangs   in   the   balance . . .                              "
     };
 
     static float scrollOffset = 0.0f;
     scrollOffset += 5.0f; // Adjust the speed of scrolling here
 
     for (int i = 0; i < 13; ++i) {
-        float textWidth = introText[i].length() * 23.0f;
+        float textWidth = introText[i].length() * 20.0f;
         float yPos = SCR_HEIGHT / 2.0f - 200.0f - i * 80.0f + scrollOffset; 
         if (yPos > -50.0f && yPos < SCR_HEIGHT + 50.0f) {
             RenderText(introText[i], (SCR_WIDTH - textWidth) / 2.0f, yPos, 1.0f, textColor, true);
