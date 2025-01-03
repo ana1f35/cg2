@@ -1698,11 +1698,13 @@ Fighter* findClosestEnemy(const glm::vec3& playerPosition) {
 void restartGame(){
     cameraMode = 0;
     pontuacao = 0;
-    // Inicialmente estão 3 estacionados
     enemies = {
-        Fighter(glm::vec3(1000.0f, 5.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1, 10.0f),
-        Fighter(glm::vec3(900.0f, 5.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1, 10.0f),
-        Fighter(glm::vec3(1000.0f, 5.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1, 10.0f)
+        Fighter(glm::vec3(750.0f, 30.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+        Fighter(glm::vec3(600.0f, 20.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+        Fighter(glm::vec3(800.0f, 30.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+
+        Fighter(glm::vec3(2000.0f, 100.0f, -300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
+        Fighter(glm::vec3(2100.0f, 100.0f, 300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f)
     };
 
     camera = glm::vec3(0.0f, 0.0f, 0.0f);
