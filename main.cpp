@@ -134,12 +134,12 @@ bool firstMouse = true;
 Fighter fighter_player(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 30.0f, 3, 10.0f);
 // Inicialmente estão 3 estacionados
 std::vector<Fighter> enemies = {
-    Fighter(glm::vec3(750.0f, 30.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
-    Fighter(glm::vec3(600.0f, 20.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
-    Fighter(glm::vec3(800.0f, 30.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
+    Fighter(glm::vec3(750.0f, 30.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+    Fighter(glm::vec3(600.0f, 20.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+    Fighter(glm::vec3(800.0f, 30.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
 
-    Fighter(glm::vec3(2000.0f, 100.0f, -300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 8.0f, 1, 10.0f),
-    Fighter(glm::vec3(2100.0f, 100.0f, 300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 8.0f, 1, 10.0f)
+    Fighter(glm::vec3(2000.0f, 100.0f, -300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
+    Fighter(glm::vec3(2100.0f, 100.0f, 300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f)
 };
 
 std::vector<Projectile> projectiles;
@@ -904,8 +904,8 @@ void moverInimigos() {
         direction = glm::normalize(fighter_player.position - it->position);
         float targetYaw = glm::degrees(atan2(direction.z, -direction.x));
         float targetPitch = glm::degrees(asin(-direction.y));
-        it->directionX = glm::mix(it->directionX, targetYaw, 0.1f);
-        it->directionY = glm::mix(it->directionY, targetPitch, 0.1f);
+        it->directionX = glm::mix(it->directionX, targetYaw, 0.05f);
+        it->directionY = glm::mix(it->directionY, targetPitch, 0.05f);
         it->front = glm::normalize(glm::vec3(
             cos(glm::radians(it->directionY)) * cos(glm::radians(it->directionX)),
             sin(glm::radians(it->directionY)),
@@ -1018,8 +1018,27 @@ void processInput()
         vKeyPressed = false;
     }
 
-    if(cameraMode == 2)
+    static bool fireKeyPressed = false;
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+        if (!fireKeyPressed) {
+            shootProjectile(fighter_player);
+            fireKeyPressed = true;
+        }
+        } else {
+            fireKeyPressed = false;
+        }
+
+    if(cameraMode == 2){
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+            fighter_player.position.z -= 5.0;
+        }
+
+        else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
+           fighter_player.position.z += 5.0;
+        }
+
         return;
+    }
 
     static float lastPressTime = 0.0f;
 
@@ -1049,16 +1068,6 @@ void processInput()
             }
         }
     }
-
-    static bool fireKeyPressed = false;
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-        if (!fireKeyPressed) {
-            shootProjectile(fighter_player);
-            fireKeyPressed = true;
-        }
-        } else {
-            fireKeyPressed = false;
-        }
 }
 
 /**
@@ -1175,10 +1184,10 @@ void renderScene() {
         camera.Position = fighter_player.position;
     }
     else {
-        glm::vec3 cameraOffset(0.0f, 500.0f, 0.0f); // Top view offset
+        glm::vec3 cameraOffset(150.0f, 500.0f, 0.0f); // Top view offset
         camera.Position = fighter_player.position + cameraOffset;
         camera.Front = glm::vec3(0.0f, -1.0f, 0.0f); // Look directly down
-        camera.Up = glm::vec3(0.0f, 0.0f, -1.0f); // Adjust the up vector
+        camera.Up = glm::vec3(1.0f, 0.0f, 0.0f); // Adjust the up vector
     }
 
     glm::mat4 view = camera.GetViewMatrix();
