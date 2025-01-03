@@ -1607,8 +1607,14 @@ void shootProjectile(const Fighter& fighter) {
     glm::vec3 projectilePosition = fighter.position + fighter.front * 5.0f;
     glm::vec3 direction = fighter.front;
 
+    // Encontre o inimigo mais próximo
+    Fighter* closestEnemy = findClosestEnemy(fighter.position);
+    if (closestEnemy) {
+        direction = glm::normalize(closestEnemy->position - fighter.position);
+    }
+
     // Adiciona um novo projétil ao vetor
-    projectiles.emplace_back(projectilePosition, direction, 100.0f, 2.0f, 0);
+    projectiles.emplace_back(projectilePosition, direction, 50.0f, 2.0f, 0); // Velocidade ajustada para 50.0f
 
     std::cout << "Projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
 }
@@ -1639,7 +1645,7 @@ void shootEnemyProjectiles(float deltaTime) {
             glm::vec3 projectileDirection = glm::normalize(fighter_player.position - enemy.position); // Direção para o jogador
 
             // Velocidade reduzida para projéteis inimigos
-            float projectileSpeed = 30.0f; // Ajuste conforme necessário
+            float projectileSpeed = 20.0f; // Ajuste conforme necessário
             projectiles.emplace_back(projectilePosition, projectileDirection, projectileSpeed, 2.0f, 1);
 
             std::cout << "Enemy projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
