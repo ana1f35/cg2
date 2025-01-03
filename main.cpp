@@ -212,9 +212,14 @@ int main() {
     }
 
     glfwMakeContextCurrent(window);
-
-    // Set the input mode to lock the cursor and make it invisible
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Lock the cursor
+    // Create a 1x1 black pixel cursor
+    unsigned char pixels[4] = { 0, 0, 0, 255 };
+    GLFWimage image;
+    image.width = 1;
+    image.height = 1;
+    image.pixels = pixels;
+    GLFWcursor* cursor = glfwCreateCursor(&image, 0, 0);
+    glfwSetCursor(window, cursor);
     glfwSetCursorPos(window, SCR_WIDTH/2, SCR_HEIGHT/2); // Set the initial cursor position
 
     glfwSetCursorPosCallback(window, mouse_callback);
@@ -1052,6 +1057,18 @@ void processInput()
             fireKeyPressed = false;
         }
 
+    if(cameraMode == 2){
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+            fighter_player.position.z -= 5.0;
+        }
+
+        else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
+            fighter_player.position.z += 5.0;
+        }
+
+        return;
+    }
+
     static float lastPressTime = 0.0f;
 
     // Move forward with smooth acceleration
@@ -1081,18 +1098,6 @@ void processInput()
             }
         }
     }
-
-    if(cameraMode == 2){
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-            fighter_player.position.z -= 5.0;
-        }
-
-        else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
-            fighter_player.position.z += 5.0;
-        }
-
-        return;
-    }
 }
 
 /**
@@ -1110,28 +1115,13 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     if(cameraMode == 2)
         return;
 
-    // if (firstMouse)
-    // {
-    //     lastX = xpos;
-    //     lastY = ypos;
-    //     firstMouse = false;
-    // }
-    
     int width, height;
     glfwGetWindowSize(window, &width, &height);
 
     float xoffset = xpos - (width/2);
     float yoffset = (height/2) - ypos;
 
-    // float xoffset = xpos - lastX;
-    // float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
-    // lastX = xpos;
-    // lastY = ypos;
-
-    // printf("x: %f\n", xoffset);
-    // printf("y: %f\n", yoffset);
-
-    float sensitivity = 0.01f;
+    float sensitivity = 0.005f;
     xoffset *= sensitivity;
     yoffset *= sensitivity;
 
@@ -1194,6 +1184,19 @@ void renderScene() {
             cos(glm::radians(fighter_player.directionY)) * sin(glm::radians(fighter_player.directionX))
         );
         fighter_player.position += fighter_player.movementSpeed * direction * 0.05f;
+
+        // Gradually reset the fighter's rotation to 0
+        if (fighter_player.rotation > 0.0f) {
+            fighter_player.rotation -= 0.5f; 
+            if (fighter_player.rotation < 0.0f) {
+                fighter_player.rotation = 0.0f;
+            }
+        } else if (fighter_player.rotation < 0.0f) {
+            fighter_player.rotation += 0.5f; 
+            if (fighter_player.rotation > 0.0f) {
+                fighter_player.rotation = 0.0f;
+            }
+        }
     }
 
     // Update camera position
@@ -1213,6 +1216,9 @@ void renderScene() {
         camera.Position = fighter_player.position + cameraOffset;
         camera.Front = glm::vec3(0.0f, -1.0f, 0.0f); // Look directly down
         camera.Up = glm::vec3(1.0f, 0.0f, 0.0f); // Adjust the up vector
+        fighter_player.directionX = 0.0f;
+        fighter_player.directionY = 0.0f;
+        fighter_player.rotation = 0.0f;
     }
 
     glm::mat4 view = camera.GetViewMatrix();
