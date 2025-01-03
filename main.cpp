@@ -174,6 +174,10 @@ std::map<GLchar, Character> Characters, Characters2;
 unsigned int VAOt, VBOt;
 glm::vec3 textColor = glm::vec3(255.0f / 255.0f, 232.0f / 255.0f, 31.0f / 255.0f);
 
+ALuint buffer, source, buffer2, source2;
+ALCdevice* device;
+ALCcontext* context;
+
 /**
  * @brief A função principal inicializa e configura o GLFW, cria uma janela em fullscreen,
  * usa o GLAD para permitir o uso de todas as funções do OpenGL e é configurado o estado global do mesmo.
@@ -257,34 +261,8 @@ int main() {
     glm::vec3 cameraOffset(0.0f, 10.0f, 60.0f);
     camera.Position = fighter_player.position - fighter_player.front * cameraOffset.z + glm::vec3(0.0f, cameraOffset.y, 0.0f);
 
-    // Initialize OpenAL
-    ALCdevice* device = alcOpenDevice(NULL); // Open default device
-    if (!device) {
-        std::cerr << "Failed to open default audio device" << std::endl;
+    if(inicializarSound(device, context, buffer, buffer2, source, source2) == -1)
         return -1;
-    }
-
-    ALCcontext* context = alcCreateContext(device, NULL);
-    if (!alcMakeContextCurrent(context)) {
-        std::cerr << "Failed to set OpenAL context" << std::endl;
-        alcCloseDevice(device);
-        return -1;
-    }
-
-    // Load audio into buffer
-    ALuint buffer;
-    if (!loadAudio("sound/intro.wav", buffer)) {
-        alcMakeContextCurrent(NULL);
-        alcDestroyContext(context);
-        alcCloseDevice(device);
-        return -1;
-    }
-
-    // Generate a source and attach the buffer to it
-    ALuint source;
-    alGenSources(1, &source);
-    alSourcei(source, AL_BUFFER, buffer);
-    alSourcePlay(source);
 
     // Render loop
     while (!glfwWindowShouldClose(window))
@@ -297,7 +275,7 @@ int main() {
         }
 
         processInput();
-
+        
         if(gameState == 5){
             renderIntro();
             glfwSwapBuffers(window);
@@ -1066,6 +1044,7 @@ void processInput()
     static bool fireKeyPressed = false;
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
         if (!fireKeyPressed) {
+            alSourcePlay(source2);
             shootProjectile(fighter_player);
             fireKeyPressed = true;
         }

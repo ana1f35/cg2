@@ -43,3 +43,46 @@ void playAudio(ALuint buffer) {
         alDeleteSources(1, &source);
     }).detach();
 }
+
+int inicializarSound(ALCdevice*& device, ALCcontext*& context, ALuint& buffer, ALuint& buffer2, ALuint& source, ALuint& source2) {
+    // Initialize OpenAL
+    device = alcOpenDevice(NULL); // Open default device
+    if (!device) {
+        std::cerr << "Failed to open default audio device" << std::endl;
+        return -1;
+    }
+
+    context = alcCreateContext(device, NULL);
+    if (!alcMakeContextCurrent(context)) {
+        std::cerr << "Failed to set OpenAL context" << std::endl;
+        alcCloseDevice(device);
+        return -1;
+    }
+
+    // Load audio into buffer
+    if (!loadAudio("sound/intro.wav", buffer)) {
+        alcMakeContextCurrent(NULL);
+        alcDestroyContext(context);
+        alcCloseDevice(device);
+        return -1;
+    }
+    // Load audio into buffer
+    if (!loadAudio("sound/tie_fighter.wav", buffer2)) {
+        alcMakeContextCurrent(NULL);
+        alcDestroyContext(context);
+        alcCloseDevice(device);
+        return -1;
+    }
+
+    // Generate a source and attach the buffer to it
+    alGenSources(1, &source);
+    alSourcei(source, AL_BUFFER, buffer);
+    alSourcePlay(source);
+
+    alGenSources(1, &source2);
+    alSourcei(source2, AL_BUFFER, buffer2);
+    alSourcePlay(source2);
+
+    return 0;
+}
+
