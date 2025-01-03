@@ -11,6 +11,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <AL/al.h>
+#include <AL/alc.h>
 #include "include/shader_m.h"
 #include "include/camera.h"
 #include "include/tiny_obj_loader.h"
@@ -77,6 +79,7 @@ void setupBoundingBox();
 void createShot(float radius, float height, int segments, unsigned int& VAO, unsigned int& VBO);
 Fighter* findClosestEnemy(const glm::vec3& playerPosition);
 void restartGame();
+void renderIntro();
 
 // Variáveis globais
 unsigned int SCR_WIDTH = 800;
@@ -90,6 +93,7 @@ Shader* hitBoxShader;
 
 unsigned int cameraMode = 0;
 unsigned int gameState = 0;
+// unsigned int gameState = 5;
 int pontuacao = 0;
 
 glm::vec3 hangarPos(0.0f, 0.0f, 0.0f);
@@ -258,7 +262,16 @@ int main() {
     while (!glfwWindowShouldClose(window))
     {
         processInput();
+
+        if(gameState == 5){
+            renderIntro();
+            glfwSwapBuffers(window);
+            glfwPollEvents();
+            continue;
+        }
+
         renderScene();
+
         if(gameState == 0){
             const std::string titulo = "- War of StArs -";
             const std::string iniciar = "Press SPACE To Start";
@@ -292,6 +305,18 @@ int main() {
                 animacaoInimigos();
                 lastSpawnTime = currentSpawnTime;
             }
+
+            static float lastTime = glfwGetTime();
+            float currentTime = glfwGetTime();
+            float deltaTime = currentTime - lastTime;
+
+            createShot(0.2f, 0.5f, 36, VAOProjectile, numProjectileVertices);
+
+            updateProjectiles(deltaTime);
+            shootEnemyProjectiles(deltaTime);
+            checkCollisions();
+
+            renderProjectiles(*hitBoxShader);
         }
         // Em pausa (controlos)
         else if(gameState == 2){
@@ -330,18 +355,6 @@ int main() {
             float restartWidth = restart.length() * 25.0f;
             RenderText(restart, (SCR_WIDTH - restartWidth) / 2.0f, SCR_HEIGHT / 2.0f - 200.0f, 1.0f, textColor, true);
         }
-
-        static float lastTime = glfwGetTime();
-        float currentTime = glfwGetTime();
-        float deltaTime = currentTime - lastTime;
-
-        createShot(0.2f, 0.5f, 36, VAOProjectile, numProjectileVertices);
-
-        updateProjectiles(deltaTime);
-        shootEnemyProjectiles(deltaTime);
-        checkCollisions();
-
-        renderProjectiles(*hitBoxShader);
 
         // Swap buffers and poll IO events
         glfwSwapBuffers(window);
@@ -962,7 +975,7 @@ void processInput()
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    if(gameState == 0 || gameState == 3)
+    if(gameState == 0 || gameState == 3 || gameState == 5)
         return;
 
     if(gameState == 4){
@@ -995,13 +1008,18 @@ void processInput()
         if (!vKeyPressed) {
             if(cameraMode == 0)
                 cameraMode = 1;
-            else
+            else if(cameraMode == 1)
+                cameraMode = 2;
+            else 
                 cameraMode = 0;
             vKeyPressed = true;
         }
     } else {
         vKeyPressed = false;
     }
+
+    if(cameraMode == 2)
+        return;
 
     static float lastPressTime = 0.0f;
 
@@ -1054,6 +1072,8 @@ void processInput()
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
     if(gameState != 1)
+        return;
+    if(cameraMode == 2)
         return;
 
     // if (firstMouse)
@@ -1151,8 +1171,14 @@ void renderScene() {
         else
             camera.Position = glm::mix(camera.Position, finalPos, 0.1f);
     }
-    else {
+    else if (cameraMode == 1) {
         camera.Position = fighter_player.position;
+    }
+    else {
+        glm::vec3 cameraOffset(0.0f, 500.0f, 0.0f); // Top view offset
+        camera.Position = fighter_player.position + cameraOffset;
+        camera.Front = glm::vec3(0.0f, -1.0f, 0.0f); // Look directly down
+        camera.Up = glm::vec3(0.0f, 0.0f, -1.0f); // Adjust the up vector
     }
 
     glm::mat4 view = camera.GetViewMatrix();
@@ -1353,9 +1379,13 @@ void renderScene() {
 
 void RenderText(std::string text, float x, float y, float scale, glm::vec3 color, bool useFirstFont = true)
 {
-    // activate corresponding render state	
-    glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(SCR_WIDTH), 0.0f, static_cast<float>(SCR_HEIGHT));
     textShader->use();
+    glm::mat4 projection;
+    if(gameState == 5){
+        projection = glm::ortho(0.0f, static_cast<float>(SCR_WIDTH), 0.0f, static_cast<float>(SCR_HEIGHT));
+    } else {
+        projection = glm::ortho(0.0f, static_cast<float>(SCR_WIDTH), 0.0f, static_cast<float>(SCR_HEIGHT));
+    }
     textShader->setMat4("projection", projection);
     glUniform3f(glGetUniformLocation(textShader->ID, "textColor"), color.x, color.y, color.z);
     glActiveTexture(GL_TEXTURE0); 
@@ -1660,4 +1690,39 @@ void restartGame(){
     fighter_player = Fighter(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 30.0f, 3, 10.0f);
 
     animacaoSaida();
+}
+
+void renderIntro(){
+    // Clear the screen
+    glClearColor(0.01f, 0.0f, 0.02f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    const std::string introText[] = {
+        "The Rebel Alliance, battered but defiant,",
+        "has established a hidden staging ground",
+        "in the remote Outer Rim. But the relentless",
+        "Imperial Fleet, under the command of the ",
+        "cunning Grand Admiral Thrawn, has discovered",
+        "their location. Imperial intelligence has",
+        "uncovered a critical weakness in the Rebel",
+        "defenses: the vulnerable hangar bay of the",
+        "Cruiser Liberator. A swift strike against",
+        "this crucial vessel could cripple the Rebel",
+        "fleet before it can launch a counter-offensive.",
+        "Now, as the Imperial armada descends from the",
+        "stars, the fate of the Rebellion hangs in the balance…"
+    };
+
+    static float scrollOffset = 0.0f;
+    scrollOffset += 4.0f; // Adjust the speed of scrolling here
+
+    for (int i = 0; i < 13; ++i) {
+        float textWidth = introText[i].length() * 25.0f;
+        float yPos = SCR_HEIGHT / 2.0f - 200.0f - i * 80.0f + scrollOffset; 
+        RenderText(introText[i], (SCR_WIDTH - textWidth) / 2.0f, yPos, 1.0f, textColor, true);
+    }
+
+    if (scrollOffset > 160.0f + 13 * 80.0f) {
+        scrollOffset = 0.0f; // Reset the scroll after the text has scrolled off the screen
+    }
 }
