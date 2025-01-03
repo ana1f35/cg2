@@ -11,14 +11,13 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-// #include <AL/al.h>
-// #include <AL/alc.h>
 #include "include/shader_m.h"
 #include "include/camera.h"
 #include "include/tiny_obj_loader.h"
 #include "include/stb_image.h"
 #include "include/ft2build.h"
 #include FT_FREETYPE_H
+#include "audio.cpp"
 
 // Fighter
 struct Fighter {
@@ -93,8 +92,7 @@ Shader* textShader;
 Shader* hitBoxShader;
 
 unsigned int cameraMode = 0;
-unsigned int gameState = 0;
-// unsigned int gameState = 5;
+unsigned int gameState = 5;
 int pontuacao = 0;
 
 glm::vec3 hangarPos(0.0f, 0.0f, 0.0f);
@@ -175,6 +173,10 @@ std::vector<std::string> faces = {
 std::map<GLchar, Character> Characters, Characters2;
 unsigned int VAOt, VBOt;
 glm::vec3 textColor = glm::vec3(255.0f / 255.0f, 232.0f / 255.0f, 31.0f / 255.0f);
+
+ALuint buffer, source, buffer2, source2;
+ALCdevice* device;
+ALCcontext* context;
 
 /**
  * @brief A função principal inicializa e configura o GLFW, cria uma janela em fullscreen,
@@ -259,11 +261,21 @@ int main() {
     glm::vec3 cameraOffset(0.0f, 10.0f, 60.0f);
     camera.Position = fighter_player.position - fighter_player.front * cameraOffset.z + glm::vec3(0.0f, cameraOffset.y, 0.0f);
 
+    if(inicializarSound(device, context, buffer, buffer2, source, source2) == -1)
+        return -1;
+
     // Render loop
     while (!glfwWindowShouldClose(window))
     {
-        processInput();
+        // Loop the audio
+        ALint state;
+        alGetSourcei(source, AL_SOURCE_STATE, &state);
+        if (state != AL_PLAYING) {
+            alSourcePlay(source);
+        }
 
+        processInput();
+        
         if(gameState == 5){
             renderIntro();
             glfwSwapBuffers(window);
@@ -324,7 +336,8 @@ int main() {
             const std::string controlsTitle = "Game Controls";
             const std::string controlsText1 = "W - Increase Speed";
             const std::string controlsText2 = "S - Decrease Speed";
-            const std::string controlsText3 = "V - Toggle Camera View";
+            const std::string controlsText3 = "Q - Attack";
+            const std::string controlsText4 = "V - Toggle Camera View";
             const std::string controlsText6 = "ESC - Exit Game";
             const std::string controlsText7 = "C - Close Controls Menu";
 
@@ -336,10 +349,12 @@ int main() {
             RenderText(controlsText2, (SCR_WIDTH - textWidth2) / 2.0f, SCR_HEIGHT / 2.0f + 80.0f, 1.0f, textColor, true);
             float textWidth3 = controlsText3.length() * 25.0f;
             RenderText(controlsText3, (SCR_WIDTH - textWidth3) / 2.0f, SCR_HEIGHT / 2.0f, 1.0f, textColor, true);
+            float textWidth4 = controlsText4.length() * 25.0f;
+            RenderText(controlsText4, (SCR_WIDTH - textWidth4) / 2.0f, SCR_HEIGHT / 2.0f - 80.0f, 1.0f, textColor, true);
             float textWidth6 = controlsText6.length() * 25.0f;
-            RenderText(controlsText6, (SCR_WIDTH - textWidth6) / 2.0f, SCR_HEIGHT / 2.0f - 150.0f, 1.0f,  textColor, true);
+            RenderText(controlsText6, (SCR_WIDTH - textWidth6) / 2.0f, SCR_HEIGHT / 2.0f - 250.0f, 1.0f,  textColor, true);
             float textWidth7 = controlsText7.length() * 25.0f;
-            RenderText(controlsText7, (SCR_WIDTH - textWidth7) / 2.0f, SCR_HEIGHT / 2.0f - 250.0f, 1.0f, textColor, true);
+            RenderText(controlsText7, (SCR_WIDTH - textWidth7) / 2.0f, SCR_HEIGHT / 2.0f - 300.0f, 1.0f, textColor, true);
         }
         // Terminado
         else if(gameState == 4){
@@ -383,6 +398,10 @@ int main() {
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glfwTerminate();
+    alDeleteBuffers(1, &buffer);
+    alcMakeContextCurrent(NULL);
+    alcDestroyContext(context);
+    alcCloseDevice(device);
     return 0;
 }
 
@@ -917,14 +936,14 @@ void moverInimigos() {
     }
 
     // distância minima entre os inimigos
-    for (size_t i = 0; i < enemies.size(); ++i) {
-        for (size_t j = i + 1; j < enemies.size(); ++j) {
-            if (glm::distance(enemies[i].position, enemies[j].position) < 100.0f) {
-                glm::vec3 direction = glm::normalize(enemies[j].position - enemies[i].position);
-                enemies[j].position = enemies[i].position + direction * 100.0f;
-            }
-        }
-    }
+    // for (size_t i = 0; i < enemies.size(); ++i) {
+    //     for (size_t j = i + 1; j < enemies.size(); ++j) {
+    //         if (glm::distance(enemies[i].position, enemies[j].position) < 100.0f) {
+    //             glm::vec3 direction = glm::normalize(enemies[j].position - enemies[i].position);
+    //             enemies[j].position = enemies[i].position + direction * 100.0f;
+    //         }
+    //     }
+    // }
 }
 
 void animacaoInimigos(){
@@ -976,6 +995,9 @@ void processInput()
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
+    if(gameState == 5 && glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+        gameState = 0;
+
     if(gameState == 0 || gameState == 3 || gameState == 5)
         return;
 
@@ -1022,6 +1044,7 @@ void processInput()
     static bool fireKeyPressed = false;
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
         if (!fireKeyPressed) {
+            alSourcePlay(source2);
             shootProjectile(fighter_player);
             fireKeyPressed = true;
         }
@@ -1330,7 +1353,7 @@ void renderScene() {
         model = glm::rotate(model, glm::radians(enemy.directionX + 90), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(enemy.directionY), glm::vec3(-1.0f, 0.0f, 0.0f));
         model = glm::rotate(model, glm::radians(enemy.rotation), glm::vec3(0.0f, 0.0f, -1.0f));
-        model = glm::scale(model, glm::vec3(4.0f));
+        model = glm::scale(model, glm::vec3(3.0f));
         lightingShader->setVec3("material.ambient", 0.6f, 0.6f, 0.6f);
         lightingShader->setVec3("material.diffuse", 0.9f, 0.9f, 0.9f);
         lightingShader->setVec3("material.specular", 1.0f, 1.0f, 1.0f);
@@ -1705,11 +1728,13 @@ Fighter* findClosestEnemy(const glm::vec3& playerPosition) {
 void restartGame(){
     cameraMode = 0;
     pontuacao = 0;
-    // Inicialmente estão 3 estacionados
     enemies = {
-        Fighter(glm::vec3(1000.0f, 5.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1, 10.0f),
-        Fighter(glm::vec3(900.0f, 5.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1, 10.0f),
-        Fighter(glm::vec3(1000.0f, 5.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 15.0f, 1, 10.0f)
+        Fighter(glm::vec3(750.0f, 30.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+        Fighter(glm::vec3(600.0f, 20.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+        Fighter(glm::vec3(800.0f, 30.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+
+        Fighter(glm::vec3(2000.0f, 100.0f, -300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
+        Fighter(glm::vec3(2100.0f, 100.0f, 300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f)
     };
 
     camera = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -1725,31 +1750,32 @@ void renderIntro(){
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     const std::string introText[] = {
-        "The Rebel Alliance, battered but defiant,",
-        "has established a hidden staging ground",
-        "in the remote Outer Rim. But the relentless",
-        "Imperial Fleet, under the command of the ",
-        "cunning Grand Admiral Thrawn, has discovered",
-        "their location. Imperial intelligence has",
-        "uncovered a critical weakness in the Rebel",
-        "defenses: the vulnerable hangar bay of the",
-        "Cruiser Liberator. A swift strike against",
-        "this crucial vessel could cripple the Rebel",
-        "fleet before it can launch a counter-offensive.",
-        "Now, as the Imperial armada descends from the",
-        "stars, the fate of the Rebellion hangs in the balance…"
+        "The   Rebel   Alliance,   battered   but   defiant   has,",
+        "established   a   hidden   staging     ground    in   the",
+        "remote   Outer   Rim.   But   the   relentless   Imperial",
+        "Fleet,   under   the   command   of   the  cunning  Grand",
+        "Admiral   Thrawn,   has    discovered   their   location.",
+        "Imperial   intelligence   has    uncovered   a   critical",
+        "weakness   in   the   Rebel   defenses:   the  vulnerable",
+        "hangar   bay   of   the   Cruiser   Liberator.  A   swift",
+        "strike  against  this   crucial  vessel   could   cripple",
+        "the   Rebel  fleet   before  it  can  launch  a  counter-",
+        "offensive.  Now,  as   the   Imperial   armada   descends",
+        "from   the   stars,   the    fate    of   the   Rebellion",
+        "hangs   in   the   balance ...                           "
     };
 
     static float scrollOffset = 0.0f;
-    scrollOffset += 4.0f; // Adjust the speed of scrolling here
+    scrollOffset += 10.0f; // Adjust the speed of scrolling here
 
     for (int i = 0; i < 13; ++i) {
-        float textWidth = introText[i].length() * 25.0f;
+        float textWidth = introText[i].length() * 23.0f;
         float yPos = SCR_HEIGHT / 2.0f - 200.0f - i * 80.0f + scrollOffset; 
         RenderText(introText[i], (SCR_WIDTH - textWidth) / 2.0f, yPos, 1.0f, textColor, true);
     }
 
     if (scrollOffset > 160.0f + 13 * 80.0f) {
         scrollOffset = 0.0f; // Reset the scroll after the text has scrolled off the screen
+        gameState = 0; // Change to game mode 0
     }
 }
