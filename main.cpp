@@ -159,7 +159,7 @@ std::vector<glm::vec2> texCoords, texCoords2, texCoords3;
 unsigned int lightVBO, lightCubeVAO;
 unsigned int skyboxVAO, skyboxVBO;
 unsigned int boundingBoxVBO, boundingBoxEBO, boundingBoxVAO;
-unsigned int VAOProjectile, numProjectileVertices;
+unsigned int VAOProjectile, numProjectileVertices, VBOProjectile;
 
 // Skybox texture
 unsigned int cubemapTexture; 
@@ -1509,9 +1509,9 @@ void checkCollisions() {
 // }
 
 void renderBoundingBox(glm::vec3 position, float radius, float scaleFactor) {
-    std::cout << "Rendering bounding box at position: " 
-              << position.x << ", " << position.y << ", " << position.z 
-              << " with radius: " << radius << std::endl;
+    // std::cout << "Rendering bounding box at position: " 
+    //           << position.x << ", " << position.y << ", " << position.z 
+    //           << " with radius: " << radius << std::endl;
 
     glDisable(GL_DEPTH_TEST);  // Disable depth testing
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);  // Wire frame mode
@@ -1536,7 +1536,6 @@ void renderBoundingBox(glm::vec3 position, float radius, float scaleFactor) {
 
 void renderProjectiles(Shader& shader) {
     shader.use();
-    // shader.setVec3("color", glm::vec3(0.0f, 1.0f, 0.0f)); // Cor verde
 
     for (const auto& proj : projectiles) {
         glm::mat4 model = glm::translate(glm::mat4(1.0f), proj.position);
@@ -1551,36 +1550,47 @@ void renderProjectiles(Shader& shader) {
 
         // Configure as matrizes de visão e projeção
         shader.setMat4("view", camera.GetViewMatrix());
-        shader.setMat4("projection", glm::perspective(glm::radians(camera.Zoom), 
-                            (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 2000.0f));
+        shader.setMat4("projection", glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 2000.0f));
 
         glBindVertexArray(VAOProjectile);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, numProjectileVertices); // 2 * (36 segmentos)
         glBindVertexArray(0);
+
+        std::cout << "Projectile rendered at position: " << proj.position.x << ", " << proj.position.y << ", " << proj.position.z << std::endl;
+
     }
+    std::cout << "Projectiles rendered. Count: " << projectiles.size() << std::endl;
+
 }
 
 
 void shootProjectile(const Fighter& fighter) {
-    Fighter* target = findClosestEnemy(fighter.position);
-
-    glm::vec3 direction = target ? glm::normalize(target->position - fighter.position)
-                                 : fighter.front; // Mira no inimigo mais próximo ou na direção atual
-
     glm::vec3 projectilePosition = fighter.position + fighter.front * 5.0f;
+    glm::vec3 direction = fighter.front;
+
+    // Adiciona um novo projétil ao vetor
     projectiles.emplace_back(projectilePosition, direction, 100.0f, 2.0f, 0);
+
+    std::cout << "Projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
+
+
 }
 
 
 void updateProjectiles(float deltaTime) {
     for (auto& proj : projectiles) {
-         proj.position += proj.direction * proj.speed * deltaTime * 0.5f;
+        proj.position += proj.direction * proj.speed * deltaTime * 0.5f;
+        std::cout << "Projectile updated to position: " << proj.position.x << ", " << proj.position.y << ", " << proj.position.z << std::endl;
+
     }
 
     // Remover projéteis que saíram dos limites
     projectiles.erase(std::remove_if(projectiles.begin(), projectiles.end(), [](const Projectile& proj) {
-        return proj.position.z > 1000.0f || proj.position.z < -1000.0f; // Limites arbitrários
+        return proj.position.z > 700.0f || proj.position.z < -700.0f; // Limites arbitrários
     }), projectiles.end());
+
+    std::cout << "Projectiles updated. Count: " << projectiles.size() << std::endl;
+
 }
 
 void shootEnemyProjectiles(float deltaTime) {
@@ -1588,7 +1598,7 @@ void shootEnemyProjectiles(float deltaTime) {
     float currentTime = glfwGetTime();
 
     // Atira a cada 2 segundos
-    if (currentTime - lastShootTime >= 2.0f) {
+    if (currentTime - lastShootTime >= 3.0f) {
         for (const auto& enemy : enemies) {
             glm::vec3 projectilePosition = enemy.position + enemy.front * 5.0f; // Posição inicial
             glm::vec3 projectileDirection = glm::normalize(fighter_player.position - enemy.position); // Direção para o jogador
@@ -1704,6 +1714,7 @@ void restartGame(){
 
     camera = glm::vec3(0.0f, 0.0f, 0.0f);
     fighter_player = Fighter(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 30.0f, 3, 10.0f);
+    projectiles.clear();
 
     animacaoSaida();
 }
