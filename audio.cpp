@@ -91,6 +91,12 @@ int inicializarSound(ALCdevice*& device, ALCcontext*& context,
     alGenSources(1, &source3);
     alSourcei(source3, AL_BUFFER, buffer3);
 
+    // Lower the volume of the buffers
+    alSourcef(source, AL_GAIN, 0.3f); 
+    alSourcef(source2, AL_GAIN, 0.6f); 
+    alSourcef(source3, AL_GAIN, 0.6f); 
+
+
     return 0;
 }
 

@@ -1052,18 +1052,6 @@ void processInput()
             fireKeyPressed = false;
         }
 
-    if(cameraMode == 2){
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-            fighter_player.position.z -= 5.0;
-        }
-
-        else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
-           fighter_player.position.z += 5.0;
-        }
-
-        return;
-    }
-
     static float lastPressTime = 0.0f;
 
     // Move forward with smooth acceleration
@@ -1092,6 +1080,18 @@ void processInput()
                 fighter_player.movementSpeed = 30.0f; // Minimum speed
             }
         }
+    }
+
+    if(cameraMode == 2){
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+            fighter_player.position.z -= 5.0;
+        }
+
+        else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
+            fighter_player.position.z += 5.0;
+        }
+
+        return;
     }
 }
 
@@ -1209,7 +1209,7 @@ void renderScene() {
         camera.Position = fighter_player.position;
     }
     else {
-        glm::vec3 cameraOffset(150.0f, 500.0f, 0.0f); // Top view offset
+        glm::vec3 cameraOffset(100.0f, 300.0f, 0.0f); // Top view offset
         camera.Position = fighter_player.position + cameraOffset;
         camera.Front = glm::vec3(0.0f, -1.0f, 0.0f); // Look directly down
         camera.Up = glm::vec3(1.0f, 0.0f, 0.0f); // Adjust the up vector
@@ -1773,26 +1773,28 @@ void renderIntro(){
     const std::string introText[] = {
         "The   Rebel   Alliance,   battered   but   defiant   has,",
         "established   a   hidden   staging     ground    in   the",
-        "remote   Outer   Rim.   But   the   relentless   Imperial",
-        "Fleet,   under   the   command   of   the  cunning  Grand",
+        "remote   Outer   Rim.   But   the   relentless Imperial  ",
+        "Fleet,   under   the  command  of  the  cunning  Grand   ",
         "Admiral   Thrawn,   has    discovered   their   location.",
         "Imperial   intelligence   has    uncovered   a   critical",
         "weakness   in   the   Rebel   defenses:   the  vulnerable",
         "hangar   bay   of   the   Cruiser   Liberator.  A   swift",
         "strike  against  this   crucial  vessel   could   cripple",
         "the   Rebel  fleet   before  it  can  launch  a  counter-",
-        "offensive.  Now,  as   the   Imperial   armada   descends",
+        "offensive. Now,  as  the   Imperial  armada   descends   ",
         "from   the   stars,   the    fate    of   the   Rebellion",
-        "hangs   in   the   balance ...                           "
+        "hangs   in   the   balance . . .                         "
     };
 
     static float scrollOffset = 0.0f;
-    scrollOffset += 10.0f; // Adjust the speed of scrolling here
+    scrollOffset += 5.0f; // Adjust the speed of scrolling here
 
     for (int i = 0; i < 13; ++i) {
         float textWidth = introText[i].length() * 23.0f;
         float yPos = SCR_HEIGHT / 2.0f - 200.0f - i * 80.0f + scrollOffset; 
-        RenderText(introText[i], (SCR_WIDTH - textWidth) / 2.0f, yPos, 1.0f, textColor, true);
+        if (yPos > -50.0f && yPos < SCR_HEIGHT + 50.0f) {
+            RenderText(introText[i], (SCR_WIDTH - textWidth) / 2.0f, yPos, 1.0f, textColor, true);
+        }
     }
 
     if (scrollOffset > 160.0f + 13 * 80.0f) {
