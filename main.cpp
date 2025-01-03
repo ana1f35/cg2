@@ -11,8 +11,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <AL/al.h>
-#include <AL/alc.h>
+// #include <AL/al.h>
+// #include <AL/alc.h>
 #include "include/shader_m.h"
 #include "include/camera.h"
 #include "include/tiny_obj_loader.h"
@@ -40,9 +40,10 @@ struct Projectile {
     glm::vec3 direction;
     float speed;
     float collisionRadius;
+    int origin; // 0 = player, 1 = enemy
 
-    Projectile(glm::vec3 pos, glm::vec3 dir, float spd, float radius)
-        : position(pos), direction(glm::normalize(dir)), speed(spd), collisionRadius(radius) {}
+    Projectile(glm::vec3 pos, glm::vec3 dir, float spd, float radius, int origin)
+        : position(pos), direction(glm::normalize(dir)), speed(spd), collisionRadius(radius), origin(origin) {}
 };
 
 // Holds all state information relevant to a character as loaded using FreeType
@@ -1535,17 +1536,23 @@ void renderBoundingBox(glm::vec3 position, float radius, float scaleFactor) {
 
 void renderProjectiles(Shader& shader) {
     shader.use();
-    shader.setVec3("color", glm::vec3(0.0f, 1.0f, 0.0f)); // Cor verde
+    // shader.setVec3("color", glm::vec3(0.0f, 1.0f, 0.0f)); // Cor verde
 
     for (const auto& proj : projectiles) {
         glm::mat4 model = glm::translate(glm::mat4(1.0f), proj.position);
-        model = glm::scale(model, glm::vec3(2.0f, 5.0f, 2.0f)); // Escala aumentada para maior visibilidade
+        model = glm::scale(model, glm::vec3(2.0f, 7.0f, 2.0f)); // Escala aumentada para maior visibilidade
         shader.setMat4("model", model);
 
+        if (proj.origin == 0) {
+            shader.setVec3("boxColor", glm::vec3(0.0f, 1.0f, 0.0f)); // Verde para o jogador
+        } else {
+            shader.setVec3("boxColor", glm::vec3(1.0f, 0.0f, 0.0f)); // Vermelho para inimigos
+        }
+
         // Configure as matrizes de visão e projeção
-        // shader.setMat4("view", camera.GetViewMatrix());
-        // shader.setMat4("projection", glm::perspective(glm::radians(camera.Zoom), 
-        //                     (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 2000.0f));
+        shader.setMat4("view", camera.GetViewMatrix());
+        shader.setMat4("projection", glm::perspective(glm::radians(camera.Zoom), 
+                            (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 2000.0f));
 
         glBindVertexArray(VAOProjectile);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, numProjectileVertices); // 2 * (36 segmentos)
@@ -1561,13 +1568,13 @@ void shootProjectile(const Fighter& fighter) {
                                  : fighter.front; // Mira no inimigo mais próximo ou na direção atual
 
     glm::vec3 projectilePosition = fighter.position + fighter.front * 5.0f;
-    projectiles.emplace_back(projectilePosition, direction, 100.0f, 2.0f);
+    projectiles.emplace_back(projectilePosition, direction, 100.0f, 2.0f, 0);
 }
 
 
 void updateProjectiles(float deltaTime) {
     for (auto& proj : projectiles) {
-        proj.position += proj.direction * proj.speed * deltaTime;
+         proj.position += proj.direction * proj.speed * deltaTime * 0.5f;
     }
 
     // Remover projéteis que saíram dos limites
@@ -1583,12 +1590,12 @@ void shootEnemyProjectiles(float deltaTime) {
     // Atira a cada 2 segundos
     if (currentTime - lastShootTime >= 2.0f) {
         for (const auto& enemy : enemies) {
-            // Cria um projétil a partir da posição do inimigo
-            glm::vec3 projectilePosition = enemy.position + enemy.front * 5.0f; // Offset inicial
+            glm::vec3 projectilePosition = enemy.position + enemy.front * 5.0f; // Posição inicial
             glm::vec3 projectileDirection = glm::normalize(fighter_player.position - enemy.position); // Direção para o jogador
 
-            // Adiciona o projétil à lista global
-            projectiles.emplace_back(projectilePosition, projectileDirection, 100.0f, 2.0f);
+            // Velocidade reduzida para projéteis inimigos
+            float projectileSpeed = 30.0f; // Ajuste conforme necessário
+            projectiles.emplace_back(projectilePosition, projectileDirection, projectileSpeed, 2.0f, 1);
         }
         lastShootTime = currentTime;
     }
