@@ -44,7 +44,8 @@ void playAudio(ALuint buffer) {
     }).detach();
 }
 
-int inicializarSound(ALCdevice*& device, ALCcontext*& context, ALuint& buffer, ALuint& buffer2, ALuint& source, ALuint& source2) {
+int inicializarSound(ALCdevice*& device, ALCcontext*& context, 
+    ALuint& buffer, ALuint& buffer2, ALuint& buffer3, ALuint& source, ALuint& source2, ALuint& source3) {
     // Initialize OpenAL
     device = alcOpenDevice(NULL); // Open default device
     if (!device) {
@@ -66,22 +67,29 @@ int inicializarSound(ALCdevice*& device, ALCcontext*& context, ALuint& buffer, A
         alcCloseDevice(device);
         return -1;
     }
-    // Load audio into buffer
     if (!loadAudio("sound/tie_fighter.wav", buffer2)) {
         alcMakeContextCurrent(NULL);
         alcDestroyContext(context);
         alcCloseDevice(device);
         return -1;
     }
+    if (!loadAudio("sound/tie-fighter-roar.wav", buffer3)) {
+        alcMakeContextCurrent(NULL);
+        alcDestroyContext(context);
+        alcCloseDevice(device);
+        return -1;
+    }
+
 
     // Generate a source and attach the buffer to it
     alGenSources(1, &source);
     alSourcei(source, AL_BUFFER, buffer);
-    alSourcePlay(source);
 
     alGenSources(1, &source2);
     alSourcei(source2, AL_BUFFER, buffer2);
-    alSourcePlay(source2);
+
+    alGenSources(1, &source3);
+    alSourcei(source3, AL_BUFFER, buffer3);
 
     return 0;
 }
