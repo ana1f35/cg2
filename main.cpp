@@ -324,7 +324,8 @@ int main() {
             const std::string controlsTitle = "Game Controls";
             const std::string controlsText1 = "W - Increase Speed";
             const std::string controlsText2 = "S - Decrease Speed";
-            const std::string controlsText3 = "V - Toggle Camera View";
+            const std::string controlsText3 = "Q - Attack";
+            const std::string controlsText4 = "V - Toggle Camera View";
             const std::string controlsText6 = "ESC - Exit Game";
             const std::string controlsText7 = "C - Close Controls Menu";
 
@@ -336,10 +337,12 @@ int main() {
             RenderText(controlsText2, (SCR_WIDTH - textWidth2) / 2.0f, SCR_HEIGHT / 2.0f + 80.0f, 1.0f, textColor, true);
             float textWidth3 = controlsText3.length() * 25.0f;
             RenderText(controlsText3, (SCR_WIDTH - textWidth3) / 2.0f, SCR_HEIGHT / 2.0f, 1.0f, textColor, true);
+            float textWidth4 = controlsText4.length() * 25.0f;
+            RenderText(controlsText4, (SCR_WIDTH - textWidth4) / 2.0f, SCR_HEIGHT / 2.0f - 80.0f, 1.0f, textColor, true);
             float textWidth6 = controlsText6.length() * 25.0f;
-            RenderText(controlsText6, (SCR_WIDTH - textWidth6) / 2.0f, SCR_HEIGHT / 2.0f - 150.0f, 1.0f,  textColor, true);
+            RenderText(controlsText6, (SCR_WIDTH - textWidth6) / 2.0f, SCR_HEIGHT / 2.0f - 250.0f, 1.0f,  textColor, true);
             float textWidth7 = controlsText7.length() * 25.0f;
-            RenderText(controlsText7, (SCR_WIDTH - textWidth7) / 2.0f, SCR_HEIGHT / 2.0f - 250.0f, 1.0f, textColor, true);
+            RenderText(controlsText7, (SCR_WIDTH - textWidth7) / 2.0f, SCR_HEIGHT / 2.0f - 300.0f, 1.0f, textColor, true);
         }
         // Terminado
         else if(gameState == 4){
@@ -917,14 +920,14 @@ void moverInimigos() {
     }
 
     // distância minima entre os inimigos
-    for (size_t i = 0; i < enemies.size(); ++i) {
-        for (size_t j = i + 1; j < enemies.size(); ++j) {
-            if (glm::distance(enemies[i].position, enemies[j].position) < 100.0f) {
-                glm::vec3 direction = glm::normalize(enemies[j].position - enemies[i].position);
-                enemies[j].position = enemies[i].position + direction * 100.0f;
-            }
-        }
-    }
+    // for (size_t i = 0; i < enemies.size(); ++i) {
+    //     for (size_t j = i + 1; j < enemies.size(); ++j) {
+    //         if (glm::distance(enemies[i].position, enemies[j].position) < 100.0f) {
+    //             glm::vec3 direction = glm::normalize(enemies[j].position - enemies[i].position);
+    //             enemies[j].position = enemies[i].position + direction * 100.0f;
+    //         }
+    //     }
+    // }
 }
 
 void animacaoInimigos(){
@@ -1330,7 +1333,7 @@ void renderScene() {
         model = glm::rotate(model, glm::radians(enemy.directionX + 90), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(enemy.directionY), glm::vec3(-1.0f, 0.0f, 0.0f));
         model = glm::rotate(model, glm::radians(enemy.rotation), glm::vec3(0.0f, 0.0f, -1.0f));
-        model = glm::scale(model, glm::vec3(4.0f));
+        model = glm::scale(model, glm::vec3(3.0f));
         lightingShader->setVec3("material.ambient", 0.6f, 0.6f, 0.6f);
         lightingShader->setVec3("material.diffuse", 0.9f, 0.9f, 0.9f);
         lightingShader->setVec3("material.specular", 1.0f, 1.0f, 1.0f);
