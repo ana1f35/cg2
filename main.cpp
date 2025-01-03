@@ -11,14 +11,13 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-// #include <AL/al.h>
-// #include <AL/alc.h>
 #include "include/shader_m.h"
 #include "include/camera.h"
 #include "include/tiny_obj_loader.h"
 #include "include/stb_image.h"
 #include "include/ft2build.h"
 #include FT_FREETYPE_H
+#include "audio.cpp"
 
 // Fighter
 struct Fighter {
@@ -93,8 +92,7 @@ Shader* textShader;
 Shader* hitBoxShader;
 
 unsigned int cameraMode = 0;
-unsigned int gameState = 0;
-// unsigned int gameState = 5;
+unsigned int gameState = 5;
 int pontuacao = 0;
 
 glm::vec3 hangarPos(0.0f, 0.0f, 0.0f);
@@ -259,9 +257,45 @@ int main() {
     glm::vec3 cameraOffset(0.0f, 10.0f, 60.0f);
     camera.Position = fighter_player.position - fighter_player.front * cameraOffset.z + glm::vec3(0.0f, cameraOffset.y, 0.0f);
 
+    // Initialize OpenAL
+    ALCdevice* device = alcOpenDevice(NULL); // Open default device
+    if (!device) {
+        std::cerr << "Failed to open default audio device" << std::endl;
+        return -1;
+    }
+
+    ALCcontext* context = alcCreateContext(device, NULL);
+    if (!alcMakeContextCurrent(context)) {
+        std::cerr << "Failed to set OpenAL context" << std::endl;
+        alcCloseDevice(device);
+        return -1;
+    }
+
+    // Load audio into buffer
+    ALuint buffer;
+    if (!loadAudio("sound/intro.wav", buffer)) {
+        alcMakeContextCurrent(NULL);
+        alcDestroyContext(context);
+        alcCloseDevice(device);
+        return -1;
+    }
+
+    // Generate a source and attach the buffer to it
+    ALuint source;
+    alGenSources(1, &source);
+    alSourcei(source, AL_BUFFER, buffer);
+    alSourcePlay(source);
+
     // Render loop
     while (!glfwWindowShouldClose(window))
     {
+        // Loop the audio
+        ALint state;
+        alGetSourcei(source, AL_SOURCE_STATE, &state);
+        if (state != AL_PLAYING) {
+            alSourcePlay(source);
+        }
+
         processInput();
 
         if(gameState == 5){
@@ -386,6 +420,10 @@ int main() {
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glfwTerminate();
+    alDeleteBuffers(1, &buffer);
+    alcMakeContextCurrent(NULL);
+    alcDestroyContext(context);
+    alcCloseDevice(device);
     return 0;
 }
 
@@ -978,6 +1016,9 @@ void processInput()
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+
+    if(gameState == 5 && glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+        gameState = 0;
 
     if(gameState == 0 || gameState == 3 || gameState == 5)
         return;
@@ -1719,31 +1760,32 @@ void renderIntro(){
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     const std::string introText[] = {
-        "The Rebel Alliance, battered but defiant,",
-        "has established a hidden staging ground",
-        "in the remote Outer Rim. But the relentless",
-        "Imperial Fleet, under the command of the ",
-        "cunning Grand Admiral Thrawn, has discovered",
-        "their location. Imperial intelligence has",
-        "uncovered a critical weakness in the Rebel",
-        "defenses: the vulnerable hangar bay of the",
-        "Cruiser Liberator. A swift strike against",
-        "this crucial vessel could cripple the Rebel",
-        "fleet before it can launch a counter-offensive.",
-        "Now, as the Imperial armada descends from the",
-        "stars, the fate of the Rebellion hangs in the balance…"
+        "The   Rebel   Alliance,   battered   but   defiant   has,",
+        "established   a   hidden   staging     ground    in   the",
+        "remote   Outer   Rim.   But   the   relentless   Imperial",
+        "Fleet,   under   the   command   of   the  cunning  Grand",
+        "Admiral   Thrawn,   has    discovered   their   location.",
+        "Imperial   intelligence   has    uncovered   a   critical",
+        "weakness   in   the   Rebel   defenses:   the  vulnerable",
+        "hangar   bay   of   the   Cruiser   Liberator.  A   swift",
+        "strike  against  this   crucial  vessel   could   cripple",
+        "the   Rebel  fleet   before  it  can  launch  a  counter-",
+        "offensive.  Now,  as   the   Imperial   armada   descends",
+        "from   the   stars,   the    fate    of   the   Rebellion",
+        "hangs   in   the   balance ...                           "
     };
 
     static float scrollOffset = 0.0f;
-    scrollOffset += 4.0f; // Adjust the speed of scrolling here
+    scrollOffset += 10.0f; // Adjust the speed of scrolling here
 
     for (int i = 0; i < 13; ++i) {
-        float textWidth = introText[i].length() * 25.0f;
+        float textWidth = introText[i].length() * 23.0f;
         float yPos = SCR_HEIGHT / 2.0f - 200.0f - i * 80.0f + scrollOffset; 
         RenderText(introText[i], (SCR_WIDTH - textWidth) / 2.0f, yPos, 1.0f, textColor, true);
     }
 
     if (scrollOffset > 160.0f + 13 * 80.0f) {
         scrollOffset = 0.0f; // Reset the scroll after the text has scrolled off the screen
+        gameState = 0; // Change to game mode 0
     }
 }
