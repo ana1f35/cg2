@@ -1069,15 +1069,15 @@ void processInput()
     // Move forward with smooth acceleration
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
         if (fighter_player.movementSpeed < 100.0f) {
-            alSourcePlay(source3);
             fighter_player.movementSpeed += 50.0f;
+            alSourcePlay(source3);
         }
         lastPressTime = glfwGetTime();
     }
     // Move backward with smooth deceleration
     else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
         if (fighter_player.movementSpeed > 30.0f) {
-            fighter_player.movementSpeed -= 5.0f;
+            fighter_player.movementSpeed -= 1.0f;
         } else {
             fighter_player.movementSpeed = 30.0f; // Minimum speed
         }
