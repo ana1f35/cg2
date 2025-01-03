@@ -68,7 +68,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void processInput();
 void RenderText(std::string text, float x, float y, float scale, glm::vec3 color, bool useFirstFont);
-bool isColliding(const glm::vec3& pos1, float radius1, const glm::vec3& pos2, float radius2);
+bool isColliding(glm::vec3 projPosition, float projRadius, glm::vec3 enemyPosition, float enemyRadius);
 void checkCollisions();
 void renderBoundingBox(glm::vec3 position, float radius, float scaleFactor);
 void renderProjectiles(Shader& shader);
@@ -157,7 +157,7 @@ std::vector<glm::vec2> texCoords, texCoords2, texCoords3;
 unsigned int lightVBO, lightCubeVAO;
 unsigned int skyboxVAO, skyboxVBO;
 unsigned int boundingBoxVBO, boundingBoxEBO, boundingBoxVAO;
-unsigned int VAOProjectile, numProjectileVertices;
+unsigned int VAOProjectile, numProjectileVertices, VBOProjectile;
 
 // Skybox texture
 unsigned int cubemapTexture; 
@@ -1466,76 +1466,92 @@ void RenderText(std::string text, float x, float y, float scale, glm::vec3 color
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-bool isColliding(const glm::vec3& pos1, float radius1, const glm::vec3& pos2, float radius2) {
-    float distance = glm::distance(pos1, pos2);
-    return distance < (radius1 + radius2);
-}
-
-void checkCollisions() {
-    for (auto it = projectiles.begin(); it != projectiles.end();) {
-        bool collisionDetected = false;
-
-        // Verifica colisão com inimigos
-        for (auto& enemy : enemies) {
-            if (enemy.hp > 0 && isColliding(it->position, it->collisionRadius, enemy.position, enemy.collisionRadius)) {
-                enemy.hp -= 1; // Reduz vida do inimigo
-                if (enemy.hp <= 0) {
-                    pontuacao += 10; // Incrementa pontuação se o inimigo foi destruído
-                }
-                collisionDetected = true;
-                break;
-            }
-        }
-
-        // Verifica colisão com o jogador
-        if (isColliding(it->position, it->collisionRadius, fighter_player.position, fighter_player.collisionRadius)) {
-            fighter_player.hp -= 1; // Reduz vida do jogador
-            collisionDetected = true;
-        }
-
-        if (collisionDetected) {
-            it = projectiles.erase(it); // Remove projétil após a colisão
-        } else {
-            ++it;
-        }
-    }
+bool isColliding(glm::vec3 projPosition, float projRadius, glm::vec3 enemyPosition, float enemyRadius) {
+    float distance = glm::distance(projPosition, enemyPosition);
+    std::cout << "Distance between projectile and enemy: " << distance << std::endl;
+    std::cout << "Sum of radii: " << (projRadius + enemyRadius) << std::endl;
+    return distance < (projRadius + enemyRadius);
 }
 
 // void checkCollisions() {
-//     for (auto projIt = projectiles.begin(); projIt != projectiles.end();) {
+//     for (auto it = projectiles.begin(); it != projectiles.end();) {
 //         bool collisionDetected = false;
 
-//         // Itera sobre os inimigos e verifica colisões
-//         for (auto enemyIt = enemies.begin(); enemyIt != enemies.end();) {
-//             if (isColliding(projIt->position, projIt->collisionRadius, enemyIt->position, enemyIt->collisionRadius)) {
-//                 enemyIt->hp -= 1; // Reduz a vida do inimigo
-
-//                 if (enemyIt->hp <= 0) {
-//                     pontuacao += 10; // Incrementa pontuação
-//                     enemyIt = enemies.erase(enemyIt); // Remove o inimigo destruído
-//                 } else {
-//                     ++enemyIt;
+//         // Verifica colisão com inimigos
+//         for (auto& enemy : enemies) {
+//             if (enemy.hp > 0 && isColliding(it->position, it->collisionRadius, enemy.position, enemy.collisionRadius)) {
+//                 enemy.hp -= 1; // Reduz vida do inimigo
+//                 if (enemy.hp <= 0) {
+//                     pontuacao += 10; // Incrementa pontuação se o inimigo foi destruído
 //                 }
-
 //                 collisionDetected = true;
-//                 break; // Projétil já colidiu, sair do loop
-//             } else {
-//                 ++enemyIt;
+//                 break;
 //             }
 //         }
 
+//         // Verifica colisão com o jogador
+//         if (isColliding(it->position, it->collisionRadius, fighter_player.position, fighter_player.collisionRadius)) {
+//             fighter_player.hp -= 1; // Reduz vida do jogador
+//             collisionDetected = true;
+//         }
+
 //         if (collisionDetected) {
-//             projIt = projectiles.erase(projIt); // Remove o projétil que colidiu
+//             it = projectiles.erase(it); // Remove projétil após a colisão
 //         } else {
-//             ++projIt;
+//             ++it;
 //         }
 //     }
 // }
 
+void checkCollisions() {
+    for (auto projIt = projectiles.begin(); projIt != projectiles.end();) {
+        bool collisionDetected = false;
+
+        // Itera sobre os inimigos e verifica colisões
+        for (auto enemyIt = enemies.begin(); enemyIt != enemies.end();) {
+            std::cout << "Checking collision between projectile at (" 
+                      << projIt->position.x << ", " << projIt->position.y << ", " << projIt->position.z 
+                      << ") with radius " << projIt->collisionRadius 
+                      << " and enemy at (" 
+                      << enemyIt->position.x << ", " << enemyIt->position.y << ", " << enemyIt->position.z 
+                      << ") with radius " << enemyIt->collisionRadius << std::endl;
+
+            float distance = glm::distance(projIt->position, enemyIt->position);
+            std::cout << "Distance between projectile and enemy: " << distance << std::endl;
+            std::cout << "Sum of radii: " << (projIt->collisionRadius + enemyIt->collisionRadius) << std::endl;
+
+            if (projIt->origin == 0 && isColliding(projIt->position, projIt->collisionRadius, enemyIt->position, enemyIt->collisionRadius)) {
+                std::cout << "Collision detected between projectile and enemy" << std::endl;
+                enemyIt->hp -= 1; // Reduz a vida do inimigo
+
+                if (enemyIt->hp <= 0) {
+                    std::cout << "Enemy destroyed" << std::endl;
+                    pontuacao += 10; // Incrementa pontuação
+                    enemyIt = enemies.erase(enemyIt); // Remove o inimigo destruído
+                } else {
+                    ++enemyIt;
+                }
+
+                collisionDetected = true;
+                break; // Projétil já colidiu, sair do loop
+            } else {
+                ++enemyIt;
+            }
+        }
+
+        if (collisionDetected) {
+            std::cout << "Projectile removed" << std::endl;
+            projIt = projectiles.erase(projIt); // Remove o projétil que colidiu
+        } else {
+            ++projIt;
+        }
+    }
+}
+
 void renderBoundingBox(glm::vec3 position, float radius, float scaleFactor) {
-    std::cout << "Rendering bounding box at position: " 
-              << position.x << ", " << position.y << ", " << position.z 
-              << " with radius: " << radius << std::endl;
+    // std::cout << "Rendering bounding box at position: " 
+    //           << position.x << ", " << position.y << ", " << position.z 
+    //           << " with radius: " << radius << std::endl;
 
     glDisable(GL_DEPTH_TEST);  // Disable depth testing
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);  // Wire frame mode
@@ -1560,7 +1576,6 @@ void renderBoundingBox(glm::vec3 position, float radius, float scaleFactor) {
 
 void renderProjectiles(Shader& shader) {
     shader.use();
-    // shader.setVec3("color", glm::vec3(0.0f, 1.0f, 0.0f)); // Cor verde
 
     for (const auto& proj : projectiles) {
         glm::mat4 model = glm::translate(glm::mat4(1.0f), proj.position);
@@ -1575,36 +1590,43 @@ void renderProjectiles(Shader& shader) {
 
         // Configure as matrizes de visão e projeção
         shader.setMat4("view", camera.GetViewMatrix());
-        shader.setMat4("projection", glm::perspective(glm::radians(camera.Zoom), 
-                            (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 2000.0f));
+        shader.setMat4("projection", glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 2000.0f));
 
         glBindVertexArray(VAOProjectile);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, numProjectileVertices); // 2 * (36 segmentos)
         glBindVertexArray(0);
+
+        // std::cout << "Projectile rendered at position: " << proj.position.x << ", " << proj.position.y << ", " << proj.position.z << std::endl;
+
     }
+    // std::cout << "Projectiles rendered. Count: " << projectiles.size() << std::endl;
+
 }
 
 
 void shootProjectile(const Fighter& fighter) {
-    Fighter* target = findClosestEnemy(fighter.position);
-
-    glm::vec3 direction = target ? glm::normalize(target->position - fighter.position)
-                                 : fighter.front; // Mira no inimigo mais próximo ou na direção atual
-
     glm::vec3 projectilePosition = fighter.position + fighter.front * 5.0f;
+    glm::vec3 direction = fighter.front;
+
+    // Adiciona um novo projétil ao vetor
     projectiles.emplace_back(projectilePosition, direction, 100.0f, 2.0f, 0);
+
+    std::cout << "Projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
 }
 
 
 void updateProjectiles(float deltaTime) {
     for (auto& proj : projectiles) {
-         proj.position += proj.direction * proj.speed * deltaTime * 0.5f;
+        proj.position += proj.direction * proj.speed * deltaTime * 0.5f;
+        std::cout << "Projectile updated to position: " << proj.position.x << ", " << proj.position.y << ", " << proj.position.z << std::endl;
     }
 
     // Remover projéteis que saíram dos limites
     projectiles.erase(std::remove_if(projectiles.begin(), projectiles.end(), [](const Projectile& proj) {
-        return proj.position.z > 1000.0f || proj.position.z < -1000.0f; // Limites arbitrários
+        return proj.position.z > 700.0f || proj.position.z < -700.0f; // Limites arbitrários
     }), projectiles.end());
+
+    std::cout << "Projectiles updated. Count: " << projectiles.size() << std::endl;
 }
 
 void shootEnemyProjectiles(float deltaTime) {
@@ -1612,7 +1634,7 @@ void shootEnemyProjectiles(float deltaTime) {
     float currentTime = glfwGetTime();
 
     // Atira a cada 2 segundos
-    if (currentTime - lastShootTime >= 2.0f) {
+    if (currentTime - lastShootTime >= 3.0f) {
         for (const auto& enemy : enemies) {
             glm::vec3 projectilePosition = enemy.position + enemy.front * 5.0f; // Posição inicial
             glm::vec3 projectileDirection = glm::normalize(fighter_player.position - enemy.position); // Direção para o jogador
@@ -1620,6 +1642,8 @@ void shootEnemyProjectiles(float deltaTime) {
             // Velocidade reduzida para projéteis inimigos
             float projectileSpeed = 30.0f; // Ajuste conforme necessário
             projectiles.emplace_back(projectilePosition, projectileDirection, projectileSpeed, 2.0f, 1);
+
+            std::cout << "Enemy projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
         }
         lastShootTime = currentTime;
     }
@@ -1730,6 +1754,7 @@ void restartGame(){
 
     camera = glm::vec3(0.0f, 0.0f, 0.0f);
     fighter_player = Fighter(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 30.0f, 3, 10.0f);
+    projectiles.clear();
 
     animacaoSaida();
 }
