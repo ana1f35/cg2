@@ -73,7 +73,7 @@ int inicializarSound(ALCdevice*& device, ALCcontext*& context,
         alcCloseDevice(device);
         return -1;
     }
-    if (!loadAudio("sound/tie-fighter-roar.wav", buffer3)) {
+    if (!loadAudio("sound/speedUp.wav", buffer3)) {
         alcMakeContextCurrent(NULL);
         alcDestroyContext(context);
         alcCloseDevice(device);
