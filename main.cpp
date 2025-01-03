@@ -75,6 +75,7 @@ void updateProjectiles(float deltaTime);
 void shootEnemyProjectiles(float deltaTime);
 void setupBoundingBox();
 void createShot(float radius, float height, int segments, unsigned int& VAO, unsigned int& VBO);
+Fighter* findClosestEnemy(const glm::vec3& playerPosition);
 void restartGame();
 
 // Variáveis globais
@@ -1382,25 +1383,65 @@ bool isColliding(const glm::vec3& pos1, float radius1, const glm::vec3& pos2, fl
 }
 
 void checkCollisions() {
-for (auto& enemy : enemies) {
-        if (enemy.hp <= 0) continue; // Ignore inimigos já destruídos
+    for (auto it = projectiles.begin(); it != projectiles.end();) {
+        bool collisionDetected = false;
 
-        for (auto& proj : projectiles) {
-            if (isColliding(proj.position, proj.collisionRadius, enemy.position, enemy.collisionRadius)) {
-                // Colisão detectada
-                enemy.hp = 0; // Marca o inimigo como destruído
-                proj.position.z = 10000.0f; // Move o projétil para fora
-                pontuacao += 10; // Incrementa a pontuação
+        // Verifica colisão com inimigos
+        for (auto& enemy : enemies) {
+            if (enemy.hp > 0 && isColliding(it->position, it->collisionRadius, enemy.position, enemy.collisionRadius)) {
+                enemy.hp -= 1; // Reduz vida do inimigo
+                if (enemy.hp <= 0) {
+                    pontuacao += 10; // Incrementa pontuação se o inimigo foi destruído
+                }
+                collisionDetected = true;
                 break;
             }
         }
-    }
 
-    // Remover projéteis fora da tela
-    projectiles.erase(std::remove_if(projectiles.begin(), projectiles.end(), [](const Projectile& proj) {
-        return proj.position.z > 9999.0f;
-    }), projectiles.end());
+        // Verifica colisão com o jogador
+        if (isColliding(it->position, it->collisionRadius, fighter_player.position, fighter_player.collisionRadius)) {
+            fighter_player.hp -= 1; // Reduz vida do jogador
+            collisionDetected = true;
+        }
+
+        if (collisionDetected) {
+            it = projectiles.erase(it); // Remove projétil após a colisão
+        } else {
+            ++it;
+        }
+    }
 }
+
+// void checkCollisions() {
+//     for (auto projIt = projectiles.begin(); projIt != projectiles.end();) {
+//         bool collisionDetected = false;
+
+//         // Itera sobre os inimigos e verifica colisões
+//         for (auto enemyIt = enemies.begin(); enemyIt != enemies.end();) {
+//             if (isColliding(projIt->position, projIt->collisionRadius, enemyIt->position, enemyIt->collisionRadius)) {
+//                 enemyIt->hp -= 1; // Reduz a vida do inimigo
+
+//                 if (enemyIt->hp <= 0) {
+//                     pontuacao += 10; // Incrementa pontuação
+//                     enemyIt = enemies.erase(enemyIt); // Remove o inimigo destruído
+//                 } else {
+//                     ++enemyIt;
+//                 }
+
+//                 collisionDetected = true;
+//                 break; // Projétil já colidiu, sair do loop
+//             } else {
+//                 ++enemyIt;
+//             }
+//         }
+
+//         if (collisionDetected) {
+//             projIt = projectiles.erase(projIt); // Remove o projétil que colidiu
+//         } else {
+//             ++projIt;
+//         }
+//     }
+// }
 
 void renderBoundingBox(glm::vec3 position, float radius, float scaleFactor) {
     std::cout << "Rendering bounding box at position: " 
@@ -1434,13 +1475,13 @@ void renderProjectiles(Shader& shader) {
 
     for (const auto& proj : projectiles) {
         glm::mat4 model = glm::translate(glm::mat4(1.0f), proj.position);
-        model = glm::scale(model, glm::vec3(proj.collisionRadius));
+        model = glm::scale(model, glm::vec3(2.0f, 5.0f, 2.0f)); // Escala aumentada para maior visibilidade
         shader.setMat4("model", model);
 
         // Configure as matrizes de visão e projeção
-        shader.setMat4("view", camera.GetViewMatrix());
-        shader.setMat4("projection", glm::perspective(glm::radians(camera.Zoom), 
-                            (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 2000.0f));
+        // shader.setMat4("view", camera.GetViewMatrix());
+        // shader.setMat4("projection", glm::perspective(glm::radians(camera.Zoom), 
+        //                     (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 2000.0f));
 
         glBindVertexArray(VAOProjectile);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, numProjectileVertices); // 2 * (36 segmentos)
@@ -1450,21 +1491,15 @@ void renderProjectiles(Shader& shader) {
 
 
 void shootProjectile(const Fighter& fighter) {
-    // Spawn projectile from fighter's nose
-    glm::vec3 spawnOffset = fighter.front * 20.0f; // Increase offset to spawn further from fighter
-    glm::vec3 projectilePosition = fighter.position + spawnOffset;
-    
-    // Use fighter's front direction for projectile
-    Projectile proj(
-        projectilePosition,    // position
-        fighter.front,         // direction 
-        200.0f,               // Increased speed
-        5.0f                  // Increased collision radius
-    );
-    
-    projectiles.push_back(proj);
-    std::cout << "Shot fired from: " << projectilePosition.x << "," << projectilePosition.y << "," << projectilePosition.z << std::endl;
+    Fighter* target = findClosestEnemy(fighter.position);
+
+    glm::vec3 direction = target ? glm::normalize(target->position - fighter.position)
+                                 : fighter.front; // Mira no inimigo mais próximo ou na direção atual
+
+    glm::vec3 projectilePosition = fighter.position + fighter.front * 5.0f;
+    projectiles.emplace_back(projectilePosition, direction, 100.0f, 2.0f);
 }
+
 
 void updateProjectiles(float deltaTime) {
     for (auto& proj : projectiles) {
@@ -1568,6 +1603,22 @@ void createShot(float radius, float height, int segments, unsigned int& VAO, uns
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+}
+
+Fighter* findClosestEnemy(const glm::vec3& playerPosition) {
+    Fighter* closestEnemy = nullptr;
+    float closestDistance = std::numeric_limits<float>::max();
+
+    for (auto& enemy : enemies) {
+        if (enemy.hp > 0) { // Considere apenas inimigos vivos
+            float distance = glm::distance(playerPosition, enemy.position);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestEnemy = &enemy;
+            }
+        }
+    }
+    return closestEnemy;
 }
 
 void restartGame(){
