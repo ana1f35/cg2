@@ -110,12 +110,14 @@ glm::vec3 spotLightPositions[] = {
 glm::vec3 pointLightPositions[] = {
     glm::vec3(10.0f, 20.0f, 0.0f),
     enemyHangarPos + glm::vec3(0.0f, 20.0f, 0.0f),
-    glm::vec3(500.0f, 60.0f, 100.0f),
+    glm::vec3(500.0f, 200.0f, -100.0f),
     glm::vec3(600.0f, 200.0f, 100.0f),
-    glm::vec3(1100.0f, 200.0f, 100.0f)
+    glm::vec3(1100.0f, 200.0f, 100.0f),
+    glm::vec3(1600.0f, 200.0f, 100.0f),
+    glm::vec3(1000.0f, 200.0f, -100.0f)
 };
 glm::vec3 starLightColor(0.7f, 0.8f, 1.0f);
-glm::vec3 pointStarLightColor(0.3f, 0.4f, 1.0f);
+glm::vec3 pointStarLightColor(0.1f, 0.2f, 1.0f);
 glm::vec3 redLightColor(0.8f, 0.0f, 0.0f);
 glm::vec3 blueLightColor(0.0f, 0.0f, 0.8f);
 
@@ -132,8 +134,8 @@ std::vector<Fighter> enemies = {
     Fighter(glm::vec3(600.0f, 20.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
     Fighter(glm::vec3(800.0f, 30.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
 
-    Fighter(glm::vec3(1900.0f, 100.0f, -300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 8.0f, 1, 10.0f),
-    Fighter(glm::vec3(2000.0f, 100.0f, 300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 8.0f, 1, 10.0f)
+    Fighter(glm::vec3(2000.0f, 100.0f, -300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 8.0f, 1, 10.0f),
+    Fighter(glm::vec3(2100.0f, 100.0f, 300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 8.0f, 1, 10.0f)
 };
 
 std::vector<Projectile> projectiles;
@@ -863,37 +865,39 @@ void animacaoSaida(){
 
 void moverInimigos() {
     for (auto it = enemies.begin(); it != enemies.end(); ) {
-        // mover em direção ao player
-        glm::vec3 direction = glm::normalize(fighter_player.position - it->position);
+        // mover em frente
+        glm::vec3 finalPos = glm::vec3(0.0f, fighter_player.position.y, 0.0f);
+        glm::vec3 direction = glm::normalize(finalPos - it->position);
         glm::vec3 newPosition = it->position + direction * it->movementSpeed * 0.5f;
         it->position = newPosition;
 
-        // Se colidiu morreu
-        // if (glm::distance(newPosition, fighter_player.position) < 10.0f) {
-        //     it = enemies.erase(it);
-        // }
+        // Se colidiu morreu 
+        // TO DO : usar as caixas de colisão
+        if (glm::distance(newPosition, fighter_player.position) < 10.0f) {
+            it = enemies.erase(it);
+            continue;
+        }
 
-        // TODO: Verificar se o inimigo está fora do ângulo de visão do player
-        // float angleToPlayer = glm::degrees(atan2(direction.z, direction.x)) - fighter_player.directionX;
-        // if (angleToPlayer < -180.0f) angleToPlayer += 360.0f;
-        // if (angleToPlayer > 180.0f) angleToPlayer -= 360.0f;
-        // if (angleToPlayer < -50.0f || angleToPlayer > 50.0f) {
-        //     // Se o inimigo está fora do ângulo de visão, removê-lo
-        //     it = enemies.erase(it);
-        // } else {
-        //     ++it;
-        // }
+        // Verificar se o inimigo está fora do ângulo de visão do player
+        glm::vec3 toEnemy = glm::normalize(it->position - fighter_player.position);
+        float dotProduct = glm::dot(fighter_player.front, toEnemy);
+        float angleToPlayer = glm::degrees(glm::acos(dotProduct));
+        if (angleToPlayer > 60.0f) {
+            it = enemies.erase(it);
+            continue;
+        }
 
         // rodar na direção correta
-        float targetYaw = glm::degrees(atan2(direction.z, direction.x)) + 180;
-        float targetPitch = - glm::degrees(asin(direction.y));
-        it->directionX = glm::mix(it->directionX, targetYaw, 0.5f);
-        it->directionY = glm::mix(it->directionY, targetPitch, 0.5f);
-        it->front = glm::vec3(
+        direction = glm::normalize(fighter_player.position - it->position);
+        float targetYaw = glm::degrees(atan2(direction.z, -direction.x));
+        float targetPitch = glm::degrees(asin(-direction.y));
+        it->directionX = glm::mix(it->directionX, targetYaw, 0.1f);
+        it->directionY = glm::mix(it->directionY, targetPitch, 0.1f);
+        it->front = glm::normalize(glm::vec3(
             cos(glm::radians(it->directionY)) * cos(glm::radians(it->directionX)),
             sin(glm::radians(it->directionY)),
             cos(glm::radians(it->directionY)) * sin(glm::radians(it->directionX))
-        );
+        ));
 
         ++it;
     }
@@ -910,29 +914,34 @@ void moverInimigos() {
 }
 
 void animacaoInimigos(){
-    float targetY = 20.0f;
-    float speed = 0.5f; // speed of the animation
+    float targetY = 30.0f;
+    float speed = 0.5f; 
 
-    for (std::vector<Fighter>::size_type i = enemies.size() - 4; i < enemies.size(); i++) {
-        if (enemies[i].position.y < targetY) {
-            while (enemies[i].position.y < targetY) {
-                processInput();
-                std::string vida = "Health: " + std::to_string(fighter_player.hp);
-                std::string pontuacaoStr = "Points: " + std::to_string(pontuacao);
-                RenderText(vida, SCR_WIDTH - 300.0f, SCR_HEIGHT - 100.0f, 1.0f, textColor, true);
-                RenderText(pontuacaoStr, SCR_WIDTH - 300.0f, SCR_HEIGHT - 180.0f, 1.0f, textColor, true);
-
+    bool allEnemiesAtTarget = false;
+    while (!allEnemiesAtTarget) {
+        allEnemiesAtTarget = true;
+        for (std::vector<Fighter>::size_type i = enemies.size() - 4; i < enemies.size(); i++) {
+            if (enemies[i].position.y < targetY) {
                 enemies[i].position.y += speed;
-
-                // Render scene
-                renderScene();
-
-                // Swap buffers and poll IO events
-                glfwSwapBuffers(window);
-                glfwPollEvents();
+                if (enemies[i].position.y > targetY) {
+                    enemies[i].position.y = targetY;
+                }
+                allEnemiesAtTarget = false;
             }
-            enemies[i].position.y = targetY;
         }
+
+        processInput();
+        renderScene();
+
+        // Render text
+        std::string vida = "Health: " + std::to_string(fighter_player.hp);
+        std::string pontuacaoStr = "Points: " + std::to_string(pontuacao);
+        RenderText(vida, SCR_WIDTH - 300.0f, SCR_HEIGHT - 100.0f, 1.0f, textColor, true);
+        RenderText(pontuacaoStr, SCR_WIDTH - 300.0f, SCR_HEIGHT - 180.0f, 1.0f, textColor, true);
+
+        // Swap buffers and poll IO events
+        glfwSwapBuffers(window);
+        glfwPollEvents();
     }
 }
 
@@ -1179,28 +1188,44 @@ void renderScene() {
     lightingShader->setFloat("pointLights[1].quadratic", 0.0001f);
     // point light 3
     lightingShader->setVec3("pointLights[2].position", pointLightPositions[2]);
-    lightingShader->setVec3("pointLights[2].ambient", pointStarLightColor * glm::vec3(0.5f));
+    lightingShader->setVec3("pointLights[2].ambient", pointStarLightColor * glm::vec3(0.8f));
     lightingShader->setVec3("pointLights[2].diffuse", pointStarLightColor * glm::vec3(1.0f));
-    lightingShader->setVec3("pointLights[2].specular", 0.5f, 0.5f, 0.5f);
+    lightingShader->setVec3("pointLights[2].specular", 0.8f, 0.8f, 0.8f);
     lightingShader->setFloat("pointLights[2].constant", 1.0f);
-    lightingShader->setFloat("pointLights[2].linear", 0.001f);
-    lightingShader->setFloat("pointLights[2].quadratic", 0.00005f);
+    lightingShader->setFloat("pointLights[2].linear", 0.014f);
+    lightingShader->setFloat("pointLights[2].quadratic", 0.0007f);
     // point light 4
     lightingShader->setVec3("pointLights[3].position", pointLightPositions[3]);
-    lightingShader->setVec3("pointLights[2].ambient", pointStarLightColor * glm::vec3(0.5f));
-    lightingShader->setVec3("pointLights[2].diffuse", pointStarLightColor * glm::vec3(1.0f));
+    lightingShader->setVec3("pointLights[3].ambient", pointStarLightColor * glm::vec3(0.8f));
+    lightingShader->setVec3("pointLights[3].diffuse", pointStarLightColor * glm::vec3(1.0f));
     lightingShader->setVec3("pointLights[3].specular", 0.8f, 0.8f, 1.0f);
     lightingShader->setFloat("pointLights[3].constant", 1.0f);
-    lightingShader->setFloat("pointLights[3].linear", 0.001f);
-    lightingShader->setFloat("pointLights[3].quadratic", 0.00005f);
+    lightingShader->setFloat("pointLights[3].linear", 0.014f);
+    lightingShader->setFloat("pointLights[3].quadratic", 0.0007f);
     // point light 5
     lightingShader->setVec3("pointLights[4].position", pointLightPositions[4]);
-    lightingShader->setVec3("pointLights[2].ambient", pointStarLightColor * glm::vec3(0.5f));
-    lightingShader->setVec3("pointLights[2].diffuse", pointStarLightColor * glm::vec3(1.0f));
+    lightingShader->setVec3("pointLights[4].ambient", pointStarLightColor * glm::vec3(0.8f));
+    lightingShader->setVec3("pointLights[4].diffuse", pointStarLightColor * glm::vec3(1.0f));
     lightingShader->setVec3("pointLights[4].specular", 0.8f, 0.8f, 1.0f);
     lightingShader->setFloat("pointLights[4].constant", 1.0f);
-    lightingShader->setFloat("pointLights[4].linear", 0.001f);
-    lightingShader->setFloat("pointLights[4].quadratic", 0.00005f);
+    lightingShader->setFloat("pointLights[4].linear", 0.014f);
+    lightingShader->setFloat("pointLights[4].quadratic", 0.0007f);
+    // point light 6
+    lightingShader->setVec3("pointLights[5].position", pointLightPositions[5]);
+    lightingShader->setVec3("pointLights[5].ambient", pointStarLightColor * glm::vec3(0.8f));
+    lightingShader->setVec3("pointLights[5].diffuse", pointStarLightColor * glm::vec3(1.0f));
+    lightingShader->setVec3("pointLights[5].specular", 0.8f, 0.8f, 1.0f);
+    lightingShader->setFloat("pointLights[5].constant", 1.0f);
+    lightingShader->setFloat("pointLights[5].linear", 0.014f);
+    lightingShader->setFloat("pointLights[5].quadratic", 0.0007f);
+    // point light 7
+    lightingShader->setVec3("pointLights[6].position", pointLightPositions[6]);
+    lightingShader->setVec3("pointLights[6].ambient", pointStarLightColor * glm::vec3(0.8f));
+    lightingShader->setVec3("pointLights[6].diffuse", pointStarLightColor * glm::vec3(1.0f));
+    lightingShader->setVec3("pointLights[6].specular", 0.8f, 0.8f, 1.0f);
+    lightingShader->setFloat("pointLights[6].constant", 1.0f);
+    lightingShader->setFloat("pointLights[6].linear", 0.014f);
+    lightingShader->setFloat("pointLights[6].quadratic", 0.0007f);
 
     // spot lights
     int i = 0;
@@ -1266,13 +1291,13 @@ void renderScene() {
     // Render inimigos
     for(Fighter enemy : enemies){
         model = glm::translate(glm::mat4(1.0f), enemy.position);
-        model = glm::rotate(model, glm::radians(enemy.directionX + 270), glm::vec3(0.0f, -1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(enemy.directionX + 90), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(enemy.directionY), glm::vec3(-1.0f, 0.0f, 0.0f));
         model = glm::rotate(model, glm::radians(enemy.rotation), glm::vec3(0.0f, 0.0f, -1.0f));
         model = glm::scale(model, glm::vec3(4.0f));
-        lightingShader->setVec3("material.ambient", 0.3f, 0.3f, 0.3f);
-        lightingShader->setVec3("material.diffuse", 0.4f, 0.4f, 0.4f);
-        lightingShader->setVec3("material.specular", 0.5f, 0.5f, 0.5f);
+        lightingShader->setVec3("material.ambient", 0.6f, 0.6f, 0.6f);
+        lightingShader->setVec3("material.diffuse", 0.9f, 0.9f, 0.9f);
+        lightingShader->setVec3("material.specular", 1.0f, 1.0f, 1.0f);
         lightingShader->setFloat("material.shininess", 32.0f);
         lightingShader->setMat4("model", model);
         glBindVertexArray(VAO3);
