@@ -78,6 +78,7 @@ void shootEnemyProjectiles(float deltaTime);
 void setupBoundingBox();
 void createShot(float radius, float height, int segments, unsigned int& VAO, unsigned int& VBO);
 Fighter* findClosestEnemy(const glm::vec3& playerPosition);
+void desenhaAlvo();
 void restartGame();
 void renderIntro();
 
@@ -910,11 +911,17 @@ void moverInimigos() {
         it->position = newPosition;
 
         // Se colidiu morreu 
-        // TO DO : usar as caixas de colisão
-        if (glm::distance(newPosition, fighter_player.position) < 10.0f) {
-            it = enemies.erase(it);
+        // Verificar colisão com a nave principal
+        if (isColliding(it->position, it->collisionRadius, fighter_player.position, fighter_player.collisionRadius)) {
+            fighter_player.hp -= 1; // Reduzir 1 HP da nave principal
+            it = enemies.erase(it); // Destruir a nave inimiga
             continue;
         }
+
+        // if (glm::distance(newPosition, fighter_player.position) < 10.0f) {
+        //     it = enemies.erase(it);
+        //     continue;
+        // }
 
         // Verificar se o inimigo está fora do ângulo de visão do player
         glm::vec3 toEnemy = glm::normalize(it->position - fighter_player.position);
@@ -1197,6 +1204,8 @@ void renderScene() {
                 fighter_player.rotation = 0.0f;
             }
         }
+
+        desenhaAlvo();
     }
 
     // Update camera position
@@ -1781,6 +1790,47 @@ Fighter* findClosestEnemy(const glm::vec3& playerPosition) {
         }
     }
     return closestEnemy;
+}
+
+void desenhaAlvo(){
+    // Desabilitar o teste de profundidade para desenhar a mira na frente de tudo
+    glDisable(GL_DEPTH_TEST);
+
+    // Salvar a matriz de projeção e visualização atuais
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0, 1, 0, 1, -1, 1);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    // Definir a cor da mira (branco)
+    glColor3f(1.0f, 1.0f, 1.0f);
+
+    // Definir a largura da linha
+    glLineWidth(2.0f);
+
+    // Desenhar a mira no centro da tela
+    glBegin(GL_LINES);
+    // Linha horizontal
+    glVertex2f(0.49f, 0.5f);
+    glVertex2f(0.51f, 0.5f);
+    // Linha vertical
+    glVertex2f(0.5f, 0.49f);
+    glVertex2f(0.5f, 0.51f);
+    glEnd();
+
+    // Restaurar a matriz de projeção e visualização
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+
+    // Habilitar o teste de profundidade novamente
+    glEnable(GL_DEPTH_TEST);
 }
 
 void restartGame(){
