@@ -1507,35 +1507,54 @@ void checkCollisions() {
     for (auto projIt = projectiles.begin(); projIt != projectiles.end();) {
         bool collisionDetected = false;
 
-        // Itera sobre os inimigos e verifica colisões
-        for (auto enemyIt = enemies.begin(); enemyIt != enemies.end();) {
-            std::cout << "Checking collision between projectile at (" 
-                      << projIt->position.x << ", " << projIt->position.y << ", " << projIt->position.z 
-                      << ") with radius " << projIt->collisionRadius 
-                      << " and enemy at (" 
-                      << enemyIt->position.x << ", " << enemyIt->position.y << ", " << enemyIt->position.z 
-                      << ") with radius " << enemyIt->collisionRadius << std::endl;
+        // Verifica colisões com inimigos
+        if (projIt->origin == 0) { // Projétil do jogador
+            for (auto enemyIt = enemies.begin(); enemyIt != enemies.end();) {
+                std::cout << "Checking collision between projectile at (" 
+                          << projIt->position.x << ", " << projIt->position.y << ", " << projIt->position.z 
+                          << ") with radius " << projIt->collisionRadius 
+                          << " and enemy at (" 
+                          << enemyIt->position.x << ", " << enemyIt->position.y << ", " << enemyIt->position.z 
+                          << ") with radius " << enemyIt->collisionRadius << std::endl;
 
-            float distance = glm::distance(projIt->position, enemyIt->position);
-            std::cout << "Distance between projectile and enemy: " << distance << std::endl;
-            std::cout << "Sum of radii: " << (projIt->collisionRadius + enemyIt->collisionRadius) << std::endl;
+                float distance = glm::distance(projIt->position, enemyIt->position);
+                std::cout << "Distance between projectile and enemy: " << distance << std::endl;
+                std::cout << "Sum of radii: " << (projIt->collisionRadius + enemyIt->collisionRadius) << std::endl;
 
-            if (projIt->origin == 0 && isColliding(projIt->position, projIt->collisionRadius, enemyIt->position, enemyIt->collisionRadius)) {
-                std::cout << "Collision detected between projectile and enemy" << std::endl;
-                enemyIt->hp -= 1; // Reduz a vida do inimigo
+                if (isColliding(projIt->position, projIt->collisionRadius, enemyIt->position, enemyIt->collisionRadius)) {
+                    std::cout << "Collision detected between projectile and enemy" << std::endl;
+                    enemyIt->hp -= 1; // Reduz a vida do inimigo
 
-                if (enemyIt->hp <= 0) {
-                    std::cout << "Enemy destroyed" << std::endl;
-                    pontuacao += 10; // Incrementa pontuação
-                    enemyIt = enemies.erase(enemyIt); // Remove o inimigo destruído
+                    if (enemyIt->hp <= 0) {
+                        std::cout << "Enemy destroyed" << std::endl;
+                        pontuacao += 10; // Incrementa pontuação
+                        enemyIt = enemies.erase(enemyIt); // Remove o inimigo destruído
+                    } else {
+                        ++enemyIt;
+                    }
+
+                    collisionDetected = true;
+                    break; // Projétil já colidiu, sair do loop
                 } else {
                     ++enemyIt;
                 }
+            }
+        } else { // Projétil do inimigo
+            std::cout << "Checking collision between projectile at (" 
+                      << projIt->position.x << ", " << projIt->position.y << ", " << projIt->position.z 
+                      << ") with radius " << projIt->collisionRadius 
+                      << " and player at (" 
+                      << fighter_player.position.x << ", " << fighter_player.position.y << ", " << fighter_player.position.z 
+                      << ") with radius " << fighter_player.collisionRadius << std::endl;
 
+            float distance = glm::distance(projIt->position, fighter_player.position);
+            std::cout << "Distance between projectile and player: " << distance << std::endl;
+            std::cout << "Sum of radii: " << (projIt->collisionRadius + fighter_player.collisionRadius) << std::endl;
+
+            if (isColliding(projIt->position, projIt->collisionRadius, fighter_player.position, fighter_player.collisionRadius)) {
+                std::cout << "Collision detected between projectile and player" << std::endl;
+                fighter_player.hp -= 1; // Reduz a vida do jogador
                 collisionDetected = true;
-                break; // Projétil já colidiu, sair do loop
-            } else {
-                ++enemyIt;
             }
         }
 
@@ -1611,7 +1630,12 @@ void shootProjectile(const Fighter& fighter) {
     // Encontre o inimigo mais próximo
     Fighter* closestEnemy = findClosestEnemy(fighter.position);
     if (closestEnemy) {
-        direction = glm::normalize(closestEnemy->position - fighter.position);
+        float distance = glm::distance(fighter.position, closestEnemy->position);
+        float maxAutoAimDistance = 500.0f; // Defina a distância máxima para a mira automática
+
+        if (distance < maxAutoAimDistance) {
+            direction = glm::normalize(closestEnemy->position - fighter.position);
+        }
     }
 
     // Adiciona um novo projétil ao vetor
@@ -1643,7 +1667,14 @@ void shootEnemyProjectiles(float deltaTime) {
     if (currentTime - lastShootTime >= 3.0f) {
         for (const auto& enemy : enemies) {
             glm::vec3 projectilePosition = enemy.position + enemy.front * 5.0f; // Posição inicial
-            glm::vec3 projectileDirection = glm::normalize(fighter_player.position - enemy.position); // Direção para o jogador
+            glm::vec3 projectileDirection = enemy.front;
+
+            float distance = glm::distance(enemy.position, fighter_player.position);
+            float maxAutoAimDistance = 500.0f; // Defina a distância máxima para a mira automática
+
+            if (distance < maxAutoAimDistance) {
+                projectileDirection = glm::normalize(fighter_player.position - enemy.position);
+            }
 
             // Velocidade reduzida para projéteis inimigos
             float projectileSpeed = 20.0f; // Ajuste conforme necessário
