@@ -334,7 +334,7 @@ int main() {
         // Durante o jogo mostra: vida e pontuação
         else if(gameState == 1){
             std::string vida = "Health: " + std::to_string(fighter_player.hp);
-            std::string pontuacaoStr = "Points: " + std::to_string(pontuacao);
+            std::string pontuacaoStr = "Score: " + std::to_string(pontuacao);
             RenderText(vida, SCR_WIDTH - 300.0f, SCR_HEIGHT - 100.0f, 1.0f, textColor, true);
             RenderText(pontuacaoStr, SCR_WIDTH - 300.0f, SCR_HEIGHT - 180.0f, 1.0f, textColor, true);
             moverInimigos();
@@ -391,7 +391,7 @@ int main() {
             float textWidth6 = controlsText6.length() * 25.0f;
             RenderText(controlsText6, (SCR_WIDTH - textWidth6) / 2.0f, SCR_HEIGHT / 2.0f - 250.0f, 1.0f,  textColor, true);
             float textWidth7 = controlsText7.length() * 25.0f;
-            RenderText(controlsText7, (SCR_WIDTH - textWidth7) / 2.0f, SCR_HEIGHT / 2.0f - 300.0f, 1.0f, textColor, true);
+            RenderText(controlsText7, (SCR_WIDTH - textWidth7) / 2.0f, SCR_HEIGHT / 2.0f - 350.0f, 1.0f, textColor, true);
         }
         // Terminado
         else if(gameState == 4){
@@ -399,7 +399,7 @@ int main() {
             std::string finalScore = "Final Score: " + std::to_string(pontuacao);
             std::string finalHealth = "HP Left: " + std::to_string(fighter_player.hp);
             std::string restart = "Press SPACE To Restart";
-            float gameOverWidth = gameOver.length() * 48.0f;
+            float gameOverWidth = gameOver.length() * 52.0f;
             RenderText(gameOver, (SCR_WIDTH - gameOverWidth) / 2.0f, SCR_HEIGHT / 2.0f + 100.0f, 1.0f, textColor, false);
             float scoreWidth = finalScore.length() * 25.0f;
             RenderText(finalScore, (SCR_WIDTH - scoreWidth) / 2.0f, SCR_HEIGHT / 2.0f, 1.0f, textColor, true);
@@ -408,7 +408,7 @@ int main() {
             float restartWidth = restart.length() * 25.0f;
             RenderText(restart, (SCR_WIDTH - restartWidth) / 2.0f, SCR_HEIGHT / 2.0f - 200.0f, 1.0f, textColor, true);
         }
-
+        
         // Swap buffers and poll IO events
         glfwSwapBuffers(window);
         glfwPollEvents();
