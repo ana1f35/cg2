@@ -45,7 +45,7 @@ void playAudio(ALuint buffer) {
 }
 
 int inicializarSound(ALCdevice*& device, ALCcontext*& context, 
-    ALuint& buffer, ALuint& buffer2, ALuint& buffer3, ALuint& source, ALuint& source2, ALuint& source3) {
+    ALuint& buffer, ALuint& buffer2, ALuint& buffer3, ALuint& buffer4, ALuint& source, ALuint& source2, ALuint& source3, ALuint& source4) {
     // Initialize OpenAL
     device = alcOpenDevice(NULL); // Open default device
     if (!device) {
@@ -79,6 +79,12 @@ int inicializarSound(ALCdevice*& device, ALCcontext*& context,
         alcCloseDevice(device);
         return -1;
     }
+    if (!loadAudio("sound/explosion.wav", buffer4)) {
+        alcMakeContextCurrent(NULL);
+        alcDestroyContext(context);
+        alcCloseDevice(device);
+        return -1;
+    }
 
 
     // Generate a source and attach the buffer to it
@@ -91,11 +97,14 @@ int inicializarSound(ALCdevice*& device, ALCcontext*& context,
     alGenSources(1, &source3);
     alSourcei(source3, AL_BUFFER, buffer3);
 
+    alGenSources(1, &source4);
+    alSourcei(source4, AL_BUFFER, buffer4);
+
     // Lower the volume of the buffers
     alSourcef(source, AL_GAIN, 0.3f); 
     alSourcef(source2, AL_GAIN, 0.6f); 
     alSourcef(source3, AL_GAIN, 0.6f); 
-
+    alSourcef(source4, AL_GAIN, 0.6f); 
 
     return 0;
 }

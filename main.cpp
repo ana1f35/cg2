@@ -205,7 +205,7 @@ std::map<GLchar, Character> Characters, Characters2;
 unsigned int VAOt, VBOt;
 glm::vec3 textColor = glm::vec3(255.0f / 255.0f, 232.0f / 255.0f, 31.0f / 255.0f);
 
-ALuint buffer, source, buffer2, source2, buffer3, source3;
+ALuint buffer, source, buffer2, source2, buffer3, source3, buffer4, source4;
 ALCdevice* device;
 ALCcontext* context;
 
@@ -298,7 +298,7 @@ int main() {
     glm::vec3 cameraOffset(0.0f, 10.0f, 60.0f);
     camera.Position = fighter_player.position - fighter_player.front * cameraOffset.z + glm::vec3(0.0f, cameraOffset.y, 0.0f);
 
-    if(inicializarSound(device, context, buffer, buffer2, buffer3, source, source2, source3) == -1)
+    if(inicializarSound(device, context, buffer, buffer2, buffer3, buffer4, source, source2, source3, source4) == -1)
         return -1;
 
     // Render loop
