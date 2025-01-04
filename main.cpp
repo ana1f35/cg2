@@ -1667,10 +1667,6 @@ void checkCollisions() {
                           << enemyIt->position.x << ", " << enemyIt->position.y << ", " << enemyIt->position.z 
                           << ") with radius " << enemyIt->collisionRadius << std::endl;
 
-                float distance = glm::distance(projIt->position, enemyIt->position);
-                std::cout << "Distance between projectile and enemy: " << distance << std::endl;
-                std::cout << "Sum of radii: " << (projIt->collisionRadius + enemyIt->collisionRadius) << std::endl;
-
                 if (isColliding(projIt->position, projIt->collisionRadius, enemyIt->position, enemyIt->collisionRadius)) {
                     std::cout << "Collision detected between projectile and enemy" << std::endl;
                     enemyIt->hp -= 1; // Reduz a vida do inimigo
@@ -1690,17 +1686,6 @@ void checkCollisions() {
                 }
             }
         } else { // Projétil do inimigo
-            std::cout << "Checking collision between projectile at (" 
-                      << projIt->position.x << ", " << projIt->position.y << ", " << projIt->position.z 
-                      << ") with radius " << projIt->collisionRadius 
-                      << " and player at (" 
-                      << fighter_player.position.x << ", " << fighter_player.position.y << ", " << fighter_player.position.z 
-                      << ") with radius " << fighter_player.collisionRadius << std::endl;
-
-            float distance = glm::distance(projIt->position, fighter_player.position);
-            std::cout << "Distance between projectile and player: " << distance << std::endl;
-            std::cout << "Sum of radii: " << (projIt->collisionRadius + fighter_player.collisionRadius) << std::endl;
-
             if (isColliding(projIt->position, projIt->collisionRadius, fighter_player.position, fighter_player.collisionRadius)) {
                 std::cout << "Collision detected between projectile and player" << std::endl;
                 fighter_player.hp -= 1; // Reduz a vida do jogador
