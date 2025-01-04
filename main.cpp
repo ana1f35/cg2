@@ -19,6 +19,25 @@
 #include FT_FREETYPE_H
 #include "audio.cpp"
 
+struct MaterialInfo {
+    std::string name;
+    std::string diffuse_texname;
+    std::string specular_texname;
+    std::string normal_texname;
+    unsigned int diffuse_texid;
+    unsigned int specular_texid;
+    unsigned int normal_texid;
+};
+
+struct Model {
+    std::string name;
+    std::vector<glm::vec3> vertices;
+    std::vector<glm::vec3> normals;
+    std::vector<glm::vec2> texCoords;
+    unsigned int VAO, VBO, NBO, TBO;
+    std::vector<MaterialInfo> materials;
+};
+
 // Fighter
 struct Fighter {
     glm::vec3 position;
@@ -54,7 +73,11 @@ struct Character {
 };
 
 // Declaração das funções
-int loadModel(const std::string& filePath, std::vector<glm::vec3>& vertices, std::vector<glm::vec3>& normals, std::vector<glm::vec2>& texCoords, unsigned int& VAO, unsigned int& VBO, unsigned int& NBO, unsigned int& TBO, bool centerModel);
+int loadModel(const std::string& filePath, Model& model, bool centerModel);
+void loadMaterials(const std::string& mtlFilePath, std::vector<MaterialInfo>& materials);
+unsigned int loadTexture(const char* path);
+void renderTextures(Model *model);
+void lightsActivate(Shader *ls, glm::mat4 view, glm::mat4 projection);
 unsigned int loadCubemap(std::vector<std::string> faces);
 void setupSkybox();
 void loadLuz();
@@ -86,11 +109,19 @@ void renderIntro();
 unsigned int SCR_WIDTH = 800;
 unsigned int SCR_HEIGHT = 600;
 GLFWwindow* window;
+std::map<std::string, std::vector<MaterialInfo>> modelMaterials;
+
+Model hangarModel;
+Model tieModel;
+Model xwingModel;
+
 Shader* skyboxShader;
 Shader* lightingShader;
 Shader* lightingCubeShader;
 Shader* textShader;
 Shader* hitBoxShader;
+Shader* particleShader;
+Shader* lightingPTexShader;
 
 unsigned int cameraMode = 0;
 unsigned int gameState = 5;
@@ -239,11 +270,11 @@ int main() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    if (loadModel("models/hangar/hangar.obj", vertices, normals, texCoords, VAO, VBO, NBO, TBO, false) == -1)
+    if(loadModel("models/xwing/xwing.obj", xwingModel, true) == -1)
         return -1;
-    if(loadModel("models/tie/tie.obj", vertices2, normals2, texCoords2, VAO2, VBO2, NBO2, TBO2, true) == -1)
+    if (loadModel("models/hangar/hangar.obj", hangarModel, false) == -1)
         return -1;
-    if(loadModel("models/xwing/xwing.obj", vertices3, normals3, texCoords3, VAO3, VBO3, NBO3, TBO3, false) == -1)
+    if(loadModel("models/tie/tie.obj", tieModel, true) == -1)
         return -1;
     loadLuz();
     loadText();
@@ -254,6 +285,7 @@ int main() {
     textShader = new Shader("shaders/text.vs", "shaders/text.fs");
     skyboxShader = new Shader("shaders/skybox.vs", "shaders/skybox.fs");
     hitBoxShader = new Shader("shaders/hitbox.vs", "shaders/hitbox.fs");
+    lightingPTexShader = new Shader("shaders/lightTex.vs", "shaders/lightTex.fs");
     
     // Setup skybox and load texture
     setupSkybox();
@@ -388,15 +420,18 @@ int main() {
     glDeleteVertexArrays(1, &skyboxVAO);
     glDeleteBuffers(1, &skyboxVBO);
     glDeleteTextures(1, &cubemapTexture);
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &NBO);
-    glDeleteVertexArrays(1, &VAO2);
-    glDeleteBuffers(1, &VBO2);
-    glDeleteBuffers(1, &NBO2);
-    glDeleteVertexArrays(1, &VAO3);
-    glDeleteBuffers(1, &VBO3);
-    glDeleteBuffers(1, &NBO3);
+    glDeleteVertexArrays(1, &hangarModel.VAO);
+    glDeleteBuffers(1, &hangarModel.VBO);
+    glDeleteBuffers(1, &hangarModel.NBO);
+    glDeleteBuffers(1, &hangarModel.TBO);
+    glDeleteVertexArrays(1, &tieModel.VAO);
+    glDeleteBuffers(1, &tieModel.VBO);
+    glDeleteBuffers(1, &tieModel.NBO);
+    glDeleteBuffers(1, &tieModel.TBO);
+    glDeleteVertexArrays(1, &xwingModel.VAO);
+    glDeleteBuffers(1, &xwingModel.VBO);
+    glDeleteBuffers(1, &xwingModel.NBO);
+    glDeleteBuffers(1, &xwingModel.TBO);
     glDeleteVertexArrays(1, &lightCubeVAO);
     glDeleteBuffers(1, &lightVBO);
     glDeleteVertexArrays(1, &VAOt);
@@ -517,30 +552,28 @@ void setupSkybox() {
  * @param centerModel Bool indicando se o modelo deve ou não ser centralizado.
  * @return int - Retorna 0 se foi bem sucedido, ou -1 se ocorreu erro ao carregar o ficheiro.
  */
-int loadModel(const std::string& filePath, std::vector<glm::vec3>& vertices, std::vector<glm::vec3>& normals, std::vector<glm::vec2>& texCoords, unsigned int& VAO, unsigned int& VBO, unsigned int& NBO, unsigned int& TBO, bool centerModel) {
+int loadModel(const std::string& filePath, Model& model, bool centerModel) {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
+    std::vector<tinyobj::material_t> tinyMaterials;
     std::string warn, err;
-    std::string baseDir = filePath.substr(0, filePath.find_last_of('/')) + "/";
+    std::string mtlBaseDir = filePath.substr(0, filePath.find_last_of('/')) + "/";
+    model.name = (filePath.substr(filePath.find_last_of('/') + 1)).substr(0, (filePath.substr(filePath.find_last_of('/') + 1)).find_last_of('.'));
 
     // Load the .obj file using TinyObjLoader
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, filePath.c_str(), baseDir.c_str())) {
+    if (!tinyobj::LoadObj(&attrib, &shapes, &tinyMaterials, &err, filePath.c_str(), mtlBaseDir.c_str())) {
         std::cout << "Failed to load OBJ file: " << err << std::endl;
         return -1;
     }
 
-    if (!err.empty()) {
-        std::cout << "Error: " << err << std::endl;
+    if (!warn.empty()) {
+        std::cout << "Warning: " << warn << std::endl;
     }
-
-    std::cout << "Loaded " << shapes.size() << " shapes" << std::endl;
-    std::cout << "Loaded " << materials.size() << " materials" << std::endl;
 
     glm::vec3 center(0.0f);
     int totalVertices = 0;
 
-    // Extract vertices, normals, and texture coordinates for each point in the model
+    // Extract vertices, normals, and texture coordinates
     for (const auto& shape : shapes) {
         for (const auto& index : shape.mesh.indices) {
             glm::vec3 vertex(
@@ -548,115 +581,173 @@ int loadModel(const std::string& filePath, std::vector<glm::vec3>& vertices, std
                 attrib.vertices[3 * index.vertex_index + 1],
                 attrib.vertices[3 * index.vertex_index + 2]
             );
-            vertices.push_back(vertex);
+            model.vertices.push_back(vertex);
             center += vertex;
             totalVertices++;
-
             if (!attrib.normals.empty()) {
                 glm::vec3 normal(
                     attrib.normals[3 * index.normal_index + 0],
                     attrib.normals[3 * index.normal_index + 1],
                     attrib.normals[3 * index.normal_index + 2]
                 );
-                normals.push_back(normal);
+                model.normals.push_back(normal);
             }
-
             if (!attrib.texcoords.empty()) {
                 glm::vec2 texCoord(
                     attrib.texcoords[2 * index.texcoord_index + 0],
                     attrib.texcoords[2 * index.texcoord_index + 1]
                 );
-                texCoords.push_back(texCoord);
+                model.texCoords.push_back(texCoord);
             }
         }
     }
 
     if (centerModel) {
         center /= totalVertices;
-        for (auto& vertex : vertices) {
+        for (auto& vertex : model.vertices) {
             vertex -= center;
         }
     }
 
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &NBO);
-    glGenBuffers(1, &TBO);
-    glBindVertexArray(VAO);
+    glGenVertexArrays(1, &model.VAO);
+    glGenBuffers(1, &model.VBO);
+    glGenBuffers(1, &model.NBO);
+    glGenBuffers(1, &model.TBO);
+    glBindVertexArray(model.VAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, model.VBO);
+    glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(glm::vec3), &model.vertices[0], GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(0);
 
-    glBindBuffer(GL_ARRAY_BUFFER, NBO);
-    glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &normals[0], GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, model.NBO);
+    glBufferData(GL_ARRAY_BUFFER, model.normals.size() * sizeof(glm::vec3), &model.normals[0], GL_STATIC_DRAW);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(1);
 
-    glBindBuffer(GL_ARRAY_BUFFER, TBO);
-    glBufferData(GL_ARRAY_BUFFER, texCoords.size() * sizeof(glm::vec2), &texCoords[0], GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, model.TBO);
+    glBufferData(GL_ARRAY_BUFFER, model.texCoords.size() * sizeof(glm::vec2), &model.texCoords[0], GL_STATIC_DRAW);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
     glEnableVertexAttribArray(2);
 
-    // Load textures
-    auto loadTexture = [&](const std::string& texturePath) {
-        unsigned int textureID;
-        glGenTextures(1, &textureID);
-        glBindTexture(GL_TEXTURE_2D, textureID);
-
-        int width, height, nrComponents;
-        unsigned char* data = stbi_load(texturePath.c_str(), &width, &height, &nrComponents, 0);
-        if (data) {
-            GLenum format;
-            if (nrComponents == 1)
-                format = GL_RED;
-            else if (nrComponents == 3)
-                format = GL_RGB;
-            else if (nrComponents == 4)
-                format = GL_RGBA;
-
-            glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-            glGenerateMipmap(GL_TEXTURE_2D);
-
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-            stbi_image_free(data);
-        } else {
-            std::cout << "Failed to load texture: " << texturePath << std::endl;
-            stbi_image_free(data);
-        }
-        return textureID;
-    };
-
-    for (const auto& material : materials) {
-        std::cout << "Material name: " << material.name << std::endl;
-        if (!material.diffuse_texname.empty()) {
-            std::string texturePath = baseDir + material.diffuse_texname;
-            std::cout << "Loading texture: " << texturePath << std::endl;
-            loadTexture(texturePath);
-        }
-        if (!material.metallic_texname.empty()) {
-            std::string texturePath = baseDir + material.metallic_texname;
-            std::cout << "Loading texture: " << texturePath << std::endl;
-            loadTexture(texturePath);
-        }
-        if (!material.roughness_texname.empty()) {
-            std::string texturePath = baseDir + material.roughness_texname;
-            std::cout << "Loading texture: " << texturePath << std::endl;
-            loadTexture(texturePath);
-        }
-        if (!material.normal_texname.empty()) {
-            std::string texturePath = baseDir + material.normal_texname;
-            std::cout << "Loading texture: " << texturePath << std::endl;
-            loadTexture(texturePath);
-        }
+    // Load materials if available
+    if (!tinyMaterials.empty()) {
+        std::string mtlFilePath = mtlBaseDir + model.name + ".mtl";
+        std::cout << "Loading materials from: " << mtlFilePath << std::endl;
+        loadMaterials(mtlFilePath, model.materials);
+    } else {
+        std::cout << "No materials found in the OBJ file." << std::endl;
     }
 
     return 0;
+}
+
+// Function to load materials and textures from MTL file
+void loadMaterials(const std::string& mtlFilePath, std::vector<MaterialInfo>& materials) {
+    std::ifstream mtlFile(mtlFilePath);
+    if (!mtlFile) {
+        std::cerr << "Failed to open MTL file: " << mtlFilePath << std::endl;
+        return;
+    }
+
+    // Get the directory path of the MTL file
+    std::string directory = mtlFilePath.substr(0, mtlFilePath.find_last_of('/'));
+
+    std::map<std::string, int> material_map;
+    std::vector<tinyobj::material_t> tinyMaterials;
+    std::string warning;
+    tinyobj::LoadMtl(&material_map, &tinyMaterials, &mtlFile, &warning);
+
+    if (!warning.empty()) {
+        std::cerr << "Warning: " << warning << std::endl;
+    }
+
+    for (const auto& tinyMaterial : tinyMaterials) {
+        MaterialInfo material;
+        material.name = tinyMaterial.name;
+        material.diffuse_texname = tinyMaterial.diffuse_texname;
+        material.specular_texname = tinyMaterial.specular_texname;
+        material.normal_texname = tinyMaterial.bump_texname; // Use bump_texname for normal map
+
+        // Load textures if they exist
+        if (!material.diffuse_texname.empty()) {
+            std::string texPath = directory + "/" + material.diffuse_texname;
+            material.diffuse_texid = loadTexture(texPath.c_str());
+            std::cout << "Loaded diffuse texture: " << texPath << std::endl;
+        }
+        if (!material.specular_texname.empty()) {
+            std::string texPath = directory + "/" + material.specular_texname;
+            material.specular_texid = loadTexture(texPath.c_str());
+            std::cout << "Loaded specular texture: " << texPath << std::endl;
+        }
+        if (!material.normal_texname.empty()) {
+            std::string texPath = directory + "/" + material.normal_texname;
+            material.normal_texid = loadTexture(texPath.c_str());
+            std::cout << "Loaded normal texture: " << texPath << std::endl;
+        }
+
+        // Load additional textures
+        if (!tinyMaterial.roughness_texname.empty()) {
+            std::string texPath = directory + "/" + tinyMaterial.roughness_texname;
+            material.specular_texid = loadTexture(texPath.c_str());
+            std::cout << "Loaded roughness texture: " << texPath << std::endl;
+        }
+        if (!tinyMaterial.metallic_texname.empty()) {
+            std::string texPath = directory + "/" + tinyMaterial.metallic_texname;
+            material.specular_texid = loadTexture(texPath.c_str());
+            std::cout << "Loaded metallic texture: " << texPath << std::endl;
+        }
+        if (!tinyMaterial.bump_texname.empty()) {
+            std::string texPath = directory + "/" + tinyMaterial.bump_texname;
+            material.normal_texid = loadTexture(texPath.c_str());
+            std::cout << "Loaded bump texture: " << texPath << std::endl;
+        }
+
+        materials.push_back(material);
+        
+        std::cout << "Material: " << material.name << std::endl;
+        std::cout << "  Diffuse Texture: " << material.diffuse_texname << std::endl;
+        std::cout << "  Specular Texture: " << material.specular_texname << std::endl;
+        std::cout << "  Normal Texture: " << material.normal_texname << std::endl;
+    }
+}
+
+unsigned int loadTexture(const char* path) {
+    // Add this before loading texture
+    stbi_set_flip_vertically_on_load(true);  // OpenGL expects texture coordinates to start from bottom-left
+
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+
+    int width, height, nrComponents;
+    unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
+    if (data) {
+        GLenum format;
+        if (nrComponents == 1)
+            format = GL_RED;
+        else if (nrComponents == 3)
+            format = GL_RGB;
+        else if (nrComponents == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        // Set texture parameters
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
+        stbi_image_free(data);
+    }
+
+    return textureID;
 }
 
 void loadLuz(){
@@ -1233,124 +1324,45 @@ void renderScene() {
     glm::mat4 view = camera.GetViewMatrix();
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
     lightingShader->use();
-    // lightingShader.setInt("material.diffuse", 0);
-    // lightingShader.setInt("material.specular", 1);
-    lightingShader->setMat4("projection", projection);
-    lightingShader->setMat4("view", view);
-    lightingShader->setVec3("viewPos", camera.Position);
 
-    // directional light
-    lightingShader->setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
-    lightingShader->setVec3("dirLight.ambient", starLightColor * glm::vec3(0.1f));
-    lightingShader->setVec3("dirLight.diffuse", starLightColor * glm::vec3(0.5f));
-    lightingShader->setVec3("dirLight.specular", 0.7f, 0.7f, 0.7f);
 
-    // point light 1
-    lightingShader->setVec3("pointLights[0].position", pointLightPositions[0]);
-    lightingShader->setVec3("pointLights[0].ambient", blueLightColor * glm::vec3(0.3f));
-    lightingShader->setVec3("pointLights[0].diffuse", blueLightColor * glm::vec3(1.0f));
-    lightingShader->setVec3("pointLights[0].specular", 0.6f, 0.6f, 0.6f);
-    lightingShader->setFloat("pointLights[0].constant", 1.0f);
-    lightingShader->setFloat("pointLights[0].linear", 0.002f);
-    lightingShader->setFloat("pointLights[0].quadratic", 0.0001f);
-    // point light 2
-    lightingShader->setVec3("pointLights[1].position", pointLightPositions[1]);
-    lightingShader->setVec3("pointLights[1].ambient", redLightColor * glm::vec3(0.3f));
-    lightingShader->setVec3("pointLights[1].diffuse", redLightColor * glm::vec3(1.0f));
-    lightingShader->setVec3("pointLights[1].specular", 0.6f, 0.6f, 0.6f);
-    lightingShader->setFloat("pointLights[1].constant", 1.0f);
-    lightingShader->setFloat("pointLights[1].linear", 0.002f);
-    lightingShader->setFloat("pointLights[1].quadratic", 0.0001f);
-    // point light 3
-    lightingShader->setVec3("pointLights[2].position", pointLightPositions[2]);
-    lightingShader->setVec3("pointLights[2].ambient", pointStarLightColor * glm::vec3(0.8f));
-    lightingShader->setVec3("pointLights[2].diffuse", pointStarLightColor * glm::vec3(1.0f));
-    lightingShader->setVec3("pointLights[2].specular", 0.8f, 0.8f, 0.8f);
-    lightingShader->setFloat("pointLights[2].constant", 1.0f);
-    lightingShader->setFloat("pointLights[2].linear", 0.014f);
-    lightingShader->setFloat("pointLights[2].quadratic", 0.0007f);
-    // point light 4
-    lightingShader->setVec3("pointLights[3].position", pointLightPositions[3]);
-    lightingShader->setVec3("pointLights[3].ambient", pointStarLightColor * glm::vec3(0.8f));
-    lightingShader->setVec3("pointLights[3].diffuse", pointStarLightColor * glm::vec3(1.0f));
-    lightingShader->setVec3("pointLights[3].specular", 0.8f, 0.8f, 1.0f);
-    lightingShader->setFloat("pointLights[3].constant", 1.0f);
-    lightingShader->setFloat("pointLights[3].linear", 0.014f);
-    lightingShader->setFloat("pointLights[3].quadratic", 0.0007f);
-    // point light 5
-    lightingShader->setVec3("pointLights[4].position", pointLightPositions[4]);
-    lightingShader->setVec3("pointLights[4].ambient", pointStarLightColor * glm::vec3(0.8f));
-    lightingShader->setVec3("pointLights[4].diffuse", pointStarLightColor * glm::vec3(1.0f));
-    lightingShader->setVec3("pointLights[4].specular", 0.8f, 0.8f, 1.0f);
-    lightingShader->setFloat("pointLights[4].constant", 1.0f);
-    lightingShader->setFloat("pointLights[4].linear", 0.014f);
-    lightingShader->setFloat("pointLights[4].quadratic", 0.0007f);
-    // point light 6
-    lightingShader->setVec3("pointLights[5].position", pointLightPositions[5]);
-    lightingShader->setVec3("pointLights[5].ambient", pointStarLightColor * glm::vec3(0.8f));
-    lightingShader->setVec3("pointLights[5].diffuse", pointStarLightColor * glm::vec3(1.0f));
-    lightingShader->setVec3("pointLights[5].specular", 0.8f, 0.8f, 1.0f);
-    lightingShader->setFloat("pointLights[5].constant", 1.0f);
-    lightingShader->setFloat("pointLights[5].linear", 0.014f);
-    lightingShader->setFloat("pointLights[5].quadratic", 0.0007f);
-    // point light 7
-    lightingShader->setVec3("pointLights[6].position", pointLightPositions[6]);
-    lightingShader->setVec3("pointLights[6].ambient", pointStarLightColor * glm::vec3(0.8f));
-    lightingShader->setVec3("pointLights[6].diffuse", pointStarLightColor * glm::vec3(1.0f));
-    lightingShader->setVec3("pointLights[6].specular", 0.8f, 0.8f, 1.0f);
-    lightingShader->setFloat("pointLights[6].constant", 1.0f);
-    lightingShader->setFloat("pointLights[6].linear", 0.014f);
-    lightingShader->setFloat("pointLights[6].quadratic", 0.0007f);
+    // Activate lightingPTexShader and set its uniforms
+    lightsActivate(lightingPTexShader, view, projection);
 
-    // spot lights
-    int i = 0;
-    for (glm::vec3 pos : spotLightPositions) {
-        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].position", pos);
-        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].direction", glm::vec3(0.0f, -1.0f, 0.0f));
-        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].cutOff", glm::cos(glm::radians(25.0f)));
-        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].outerCutOff", glm::cos(glm::radians(40.0f)));
-        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].ambient", 0.4f, 0.4f, 0.4f);
-        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].diffuse", 0.8f, 0.8f, 0.8f);
-        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].specular", 1.0f, 1.0f, 1.0f);
-        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].constant", 1.0f);
-        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].linear", 0.014f);
-        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].quadratic", 0.0007f);
-        i++;
-    }
-    // spot lights do segundo hangar
-    i = 9;
-    for (glm::vec3 pos : spotLightPositions) {
-        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].position", (pos + enemyHangarPos + glm::vec3(20.0f, 0.0f, 0.0f)));
-        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].direction", glm::vec3(0.0f, -1.0f, 0.0f));
-        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].cutOff", glm::cos(glm::radians(25.0f)));
-        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].outerCutOff", glm::cos(glm::radians(40.0f)));
-        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].ambient", 0.4f, 0.4f, 0.4f);
-        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].diffuse", 0.8f, 0.8f, 0.8f);
-        lightingShader->setVec3("spotLights[" + std::to_string(i) + "].specular", 1.0f, 1.0f, 1.0f);
-        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].constant", 1.0f);
-        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].linear", 0.014f);
-        lightingShader->setFloat("spotLights[" + std::to_string(i) + "].quadratic", 0.0007f);
-        i++;
+    glm::mat4 model = glm::mat4(1.0f);
+
+    // Render inimigos with lightingPTexShader
+    for(Fighter enemy : enemies){
+        model = glm::translate(glm::mat4(1.0f), enemy.position);
+        model = glm::rotate(model, glm::radians(enemy.directionX + 90), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(enemy.directionY), glm::vec3(-1.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(enemy.rotation), glm::vec3(0.0f, 0.0f, -1.0f));
+        model = glm::scale(model, glm::vec3(3.0f));
+        lightingPTexShader->setFloat("material.shininess", 32.0f);
+        lightingPTexShader->setMat4("model", model);
+        renderTextures(&xwingModel);
     }
 
+    // Activate lightingShader and set its uniforms
+    lightsActivate(lightingShader, view, projection);
 
-    // Render hangars
+    // Render hangars with lightingShader
     auto renderHangar = [&](glm::vec3 translation, float rotation) {
-        glm::mat4 model = glm::translate(glm::mat4(1.0f), translation);
+        model = glm::translate(glm::mat4(1.0f), translation);
         model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
         lightingShader->setVec3("material.ambient", 0.3f, 0.3f, 0.3f);
         lightingShader->setVec3("material.diffuse", 0.4f, 0.4f, 0.4f);
         lightingShader->setVec3("material.specular", 0.6f, 0.6f, 0.6f);
         lightingShader->setFloat("material.shininess", 25.0f);
         lightingShader->setMat4("model", model);
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+        glBindVertexArray(hangarModel.VAO);
+        glDrawArrays(GL_TRIANGLES, 0, hangarModel.vertices.size());
     };
     renderHangar(hangarPos, 0.0f);
     renderHangar(enemyHangarPos, 180.0f);
 
-    // Render fighter
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), fighter_player.position);
+    // Render fighter with lightingShader
+    model = glm::translate(glm::mat4(1.0f), fighter_player.position);
     model = glm::rotate(model, glm::radians(fighter_player.directionX + 270), glm::vec3(0.0f, -1.0f, 0.0f));
     model = glm::rotate(model, glm::radians(fighter_player.directionY), glm::vec3(-1.0f, 0.0f, 0.0f));
     model = glm::rotate(model, glm::radians(fighter_player.rotation), glm::vec3(0.0f, 0.0f, -1.0f));
@@ -1360,24 +1372,8 @@ void renderScene() {
     lightingShader->setVec3("material.specular", 0.5f, 0.5f, 0.5f);
     lightingShader->setFloat("material.shininess", 32.0f);
     lightingShader->setMat4("model", model);
-    glBindVertexArray(VAO2);
-    glDrawArrays(GL_TRIANGLES, 0, vertices2.size());
-
-    // Render inimigos
-    for(Fighter enemy : enemies){
-        model = glm::translate(glm::mat4(1.0f), enemy.position);
-        model = glm::rotate(model, glm::radians(enemy.directionX + 90), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::rotate(model, glm::radians(enemy.directionY), glm::vec3(-1.0f, 0.0f, 0.0f));
-        model = glm::rotate(model, glm::radians(enemy.rotation), glm::vec3(0.0f, 0.0f, -1.0f));
-        model = glm::scale(model, glm::vec3(3.0f));
-        lightingShader->setVec3("material.ambient", 0.6f, 0.6f, 0.6f);
-        lightingShader->setVec3("material.diffuse", 0.9f, 0.9f, 0.9f);
-        lightingShader->setVec3("material.specular", 1.0f, 1.0f, 1.0f);
-        lightingShader->setFloat("material.shininess", 32.0f);
-        lightingShader->setMat4("model", model);
-        glBindVertexArray(VAO3);
-        glDrawArrays(GL_TRIANGLES, 0, vertices3.size());
-    }
+    glBindVertexArray(tieModel.VAO);
+    glDrawArrays(GL_TRIANGLES, 0, tieModel.vertices.size());
 
     // also draw the lamp object
     lightingCubeShader->use();
@@ -1424,6 +1420,174 @@ void renderScene() {
         renderBoundingBox(enemy.position, enemy.collisionRadius, 1.2);
     }
 
+}
+
+void renderTextures(Model *Tmodel){
+    glBindVertexArray(Tmodel->VAO);
+    if (!Tmodel->materials.empty()) {
+        // Bind vertex array before material loop
+        bool anyMaterialApplied = false;
+        for (const auto& material : Tmodel->materials){
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, 0);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, 0);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, 0);
+            if (!material.diffuse_texname.empty() || !material.specular_texname.empty() || !material.normal_texname.empty()) {
+                anyMaterialApplied = true;
+                glActiveTexture(GL_TEXTURE0);
+                if (!material.diffuse_texname.empty()) {
+                    glBindTexture(GL_TEXTURE_2D, material.diffuse_texid);
+                    lightingPTexShader->setBool("hasDiffuseTexture", true);
+                } else {
+                    lightingPTexShader->setBool("hasDiffuseTexture", false);
+                }
+
+                glActiveTexture(GL_TEXTURE1);
+                if (!material.specular_texname.empty()) {
+                    glBindTexture(GL_TEXTURE_2D, material.specular_texid);
+                    lightingPTexShader->setBool("hasSpecularTexture", true);
+                } else {
+                    lightingPTexShader->setBool("hasSpecularTexture", false);
+                }
+
+                glActiveTexture(GL_TEXTURE2);
+                if (!material.normal_texname.empty()) {
+                    glBindTexture(GL_TEXTURE_2D, material.normal_texid);
+                    lightingPTexShader->setBool("hasNormalTexture", true);
+                } else {
+                    lightingPTexShader->setBool("hasNormalTexture", false);
+                }
+            }
+        }
+        // If no materials were applied, use default rendering
+        if (!anyMaterialApplied) {
+            lightingPTexShader->setBool("hasDiffuseTexture", false);
+            lightingPTexShader->setBool("hasSpecularTexture", false);
+            lightingPTexShader->setBool("hasNormalTexture", false);
+            lightingPTexShader->setVec3("objectColor", 0.3f, 0.3f, 0.3f);
+            glDrawArrays(GL_TRIANGLES, 0, Tmodel->vertices.size());
+        }
+    } else {
+        // No materials, use default values
+        lightingPTexShader->setBool("hasDiffuseTexture", false);
+        lightingPTexShader->setBool("hasSpecularTexture", false);
+        lightingPTexShader->setBool("hasNormalTexture", false);
+        lightingPTexShader->setVec3("objectColor", 0.3f, 0.3f, 0.3f);
+        std::cout << "No materials found for model" << std::endl;
+    }
+
+    glDrawArrays(GL_TRIANGLES, 0, Tmodel->vertices.size());
+
+    // Unbind textures after rendering
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void lightsActivate(Shader *ls, glm::mat4 view, glm::mat4 projection){
+    ls->use();
+    ls->setMat4("projection", projection);
+    ls->setMat4("view", view);
+    ls->setVec3("viewPos", camera.Position);
+
+    // directional light
+    ls->setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
+    ls->setVec3("dirLight.ambient", starLightColor * glm::vec3(0.1f));
+    ls->setVec3("dirLight.diffuse", starLightColor * glm::vec3(0.5f));
+    ls->setVec3("dirLight.specular", 0.7f, 0.7f, 0.7f);
+
+    // point light 1
+    ls->setVec3("pointLights[0].position", pointLightPositions[0]);
+    ls->setVec3("pointLights[0].ambient", blueLightColor * glm::vec3(0.3f));
+    ls->setVec3("pointLights[0].diffuse", blueLightColor * glm::vec3(1.0f));
+    ls->setVec3("pointLights[0].specular", 0.6f, 0.6f, 0.6f);
+    ls->setFloat("pointLights[0].constant", 1.0f);
+    ls->setFloat("pointLights[0].linear", 0.002f);
+    ls->setFloat("pointLights[0].quadratic", 0.0001f);
+    // point light 2
+    ls->setVec3("pointLights[1].position", pointLightPositions[1]);
+    ls->setVec3("pointLights[1].ambient", redLightColor * glm::vec3(0.3f));
+    ls->setVec3("pointLights[1].diffuse", redLightColor * glm::vec3(1.0f));
+    ls->setVec3("pointLights[1].specular", 0.6f, 0.6f, 0.6f);
+    ls->setFloat("pointLights[1].constant", 1.0f);
+    ls->setFloat("pointLights[1].linear", 0.002f);
+    ls->setFloat("pointLights[1].quadratic", 0.0001f);
+    // point light 3
+    ls->setVec3("pointLights[2].position", pointLightPositions[2]);
+    ls->setVec3("pointLights[2].ambient", pointStarLightColor * glm::vec3(0.8f));
+    ls->setVec3("pointLights[2].diffuse", pointStarLightColor * glm::vec3(1.0f));
+    ls->setVec3("pointLights[2].specular", 0.8f, 0.8f, 0.8f);
+    ls->setFloat("pointLights[2].constant", 1.0f);
+    ls->setFloat("pointLights[2].linear", 0.014f);
+    ls->setFloat("pointLights[2].quadratic", 0.0007f);
+    // point light 4
+    ls->setVec3("pointLights[3].position", pointLightPositions[3]);
+    ls->setVec3("pointLights[3].ambient", pointStarLightColor * glm::vec3(0.8f));
+    ls->setVec3("pointLights[3].diffuse", pointStarLightColor * glm::vec3(1.0f));
+    ls->setVec3("pointLights[3].specular", 0.8f, 0.8f, 1.0f);
+    ls->setFloat("pointLights[3].constant", 1.0f);
+    ls->setFloat("pointLights[3].linear", 0.014f);
+    ls->setFloat("pointLights[3].quadratic", 0.0007f);
+    // point light 5
+    ls->setVec3("pointLights[4].position", pointLightPositions[4]);
+    ls->setVec3("pointLights[4].ambient", pointStarLightColor * glm::vec3(0.8f));
+    ls->setVec3("pointLights[4].diffuse", pointStarLightColor * glm::vec3(1.0f));
+    ls->setVec3("pointLights[4].specular", 0.8f, 0.8f, 1.0f);
+    ls->setFloat("pointLights[4].constant", 1.0f);
+    ls->setFloat("pointLights[4].linear", 0.014f);
+    ls->setFloat("pointLights[4].quadratic", 0.0007f);
+    // point light 6
+    ls->setVec3("pointLights[5].position", pointLightPositions[5]);
+    ls->setVec3("pointLights[5].ambient", pointStarLightColor * glm::vec3(0.8f));
+    ls->setVec3("pointLights[5].diffuse", pointStarLightColor * glm::vec3(1.0f));
+    ls->setVec3("pointLights[5].specular", 0.8f, 0.8f, 1.0f);
+    ls->setFloat("pointLights[5].constant", 1.0f);
+    ls->setFloat("pointLights[5].linear", 0.014f);
+    ls->setFloat("pointLights[5].quadratic", 0.0007f);
+    // point light 7
+    ls->setVec3("pointLights[6].position", pointLightPositions[6]);
+    ls->setVec3("pointLights[6].ambient", pointStarLightColor * glm::vec3(0.8f));
+    ls->setVec3("pointLights[6].diffuse", pointStarLightColor * glm::vec3(1.0f));
+    ls->setVec3("pointLights[6].specular", 0.8f, 0.8f, 1.0f);
+    ls->setFloat("pointLights[6].constant", 1.0f);
+    ls->setFloat("pointLights[6].linear", 0.014f);
+    ls->setFloat("pointLights[6].quadratic", 0.0007f);
+
+    // spot lights
+    int i = 0;
+    for (glm::vec3 pos : spotLightPositions) {
+        ls->setVec3("spotLights[" + std::to_string(i) + "].position", pos);
+        ls->setVec3("spotLights[" + std::to_string(i) + "].direction", glm::vec3(0.0f, -1.0f, 0.0f));
+        ls->setFloat("spotLights[" + std::to_string(i) + "].cutOff", glm::cos(glm::radians(25.0f)));
+        ls->setFloat("spotLights[" + std::to_string(i) + "].outerCutOff", glm::cos(glm::radians(40.0f)));
+        ls->setVec3("spotLights[" + std::to_string(i) + "].ambient", 0.4f, 0.4f, 0.4f);
+        ls->setVec3("spotLights[" + std::to_string(i) + "].diffuse", 0.8f, 0.8f, 0.8f);
+        ls->setVec3("spotLights[" + std::to_string(i) + "].specular", 1.0f, 1.0f, 1.0f);
+        ls->setFloat("spotLights[" + std::to_string(i) + "].constant", 1.0f);
+        ls->setFloat("spotLights[" + std::to_string(i) + "].linear", 0.014f);
+        ls->setFloat("spotLights[" + std::to_string(i) + "].quadratic", 0.0007f);
+        i++;
+    }
+    // spot lights do segundo hangar
+    i = 9;
+    for (glm::vec3 pos : spotLightPositions) {
+        ls->setVec3("spotLights[" + std::to_string(i) + "].position", (pos + enemyHangarPos + glm::vec3(20.0f, 0.0f, 0.0f)));
+        ls->setVec3("spotLights[" + std::to_string(i) + "].direction", glm::vec3(0.0f, -1.0f, 0.0f));
+        ls->setFloat("spotLights[" + std::to_string(i) + "].cutOff", glm::cos(glm::radians(25.0f)));
+        ls->setFloat("spotLights[" + std::to_string(i) + "].outerCutOff", glm::cos(glm::radians(40.0f)));
+        ls->setVec3("spotLights[" + std::to_string(i) + "].ambient", 0.4f, 0.4f, 0.4f);
+        ls->setVec3("spotLights[" + std::to_string(i) + "].diffuse", 0.8f, 0.8f, 0.8f);
+        ls->setVec3("spotLights[" + std::to_string(i) + "].specular", 1.0f, 1.0f, 1.0f);
+        ls->setFloat("spotLights[" + std::to_string(i) + "].constant", 1.0f);
+        ls->setFloat("spotLights[" + std::to_string(i) + "].linear", 0.014f);
+        ls->setFloat("spotLights[" + std::to_string(i) + "].quadratic", 0.0007f);
+        i++;
+    }
 }
 
 void RenderText(std::string text, float x, float y, float scale, glm::vec3 color, bool useFirstFont = true)
