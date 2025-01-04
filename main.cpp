@@ -163,14 +163,13 @@ float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
 
 Fighter fighter_player(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 30.0f, 3, 10.0f);
-// Inicialmente estão 3 estacionados
 std::vector<Fighter> enemies = {
-    Fighter(glm::vec3(750.0f, 30.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+    Fighter(glm::vec3(750.0f, 50.0f, -90.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
     Fighter(glm::vec3(600.0f, 20.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
-    Fighter(glm::vec3(800.0f, 30.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+    Fighter(glm::vec3(800.0f, 50.0f, 90.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
 
-    Fighter(glm::vec3(2000.0f, 100.0f, -300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
-    Fighter(glm::vec3(2100.0f, 100.0f, 300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f)
+    Fighter(glm::vec3(2000.0f, 100.0f, -200.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
+    Fighter(glm::vec3(2100.0f, 100.0f, 200.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f)
 };
 
 std::vector<Projectile> projectiles;
@@ -350,9 +349,9 @@ int main() {
             static float lastSpawnTime = glfwGetTime();
             float currentSpawnTime = glfwGetTime();
             if (currentSpawnTime - lastSpawnTime >= 10.0f && fighter_player.position.x < enemyHangarPos.x - 500) {
-                enemies.push_back(Fighter(enemyHangarPos + glm::vec3(0.0f, 5.0f, -80.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
+                enemies.push_back(Fighter(enemyHangarPos + glm::vec3(0.0f, 5.0f, -100.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
                 enemies.push_back(Fighter(enemyHangarPos + glm::vec3(-100.0f, 5.0f, 0.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
-                enemies.push_back(Fighter(enemyHangarPos + glm::vec3(0.0f, 5.0f, 80.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
+                enemies.push_back(Fighter(enemyHangarPos + glm::vec3(0.0f, 5.0f, 100.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
                 animacaoInimigos();
                 lastSpawnTime = currentSpawnTime;
             }
@@ -1050,7 +1049,7 @@ void moverInimigos() {
 }
 
 void animacaoInimigos(){
-    float targetY = 30.0f;
+    float targetY = 40.0f;
     float speed = 0.5f; 
 
     bool allEnemiesAtTarget = false;
@@ -2000,17 +1999,20 @@ void desenhaAlvo(){
 void restartGame(){
     cameraMode = 0;
     pontuacao = 0;
-    enemies = {
-        Fighter(glm::vec3(750.0f, 30.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
-        Fighter(glm::vec3(600.0f, 20.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
-        Fighter(glm::vec3(800.0f, 30.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
-
-        Fighter(glm::vec3(2000.0f, 100.0f, -300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
-        Fighter(glm::vec3(2100.0f, 100.0f, 300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f)
-    };
-
+    
     camera = glm::vec3(0.0f, 0.0f, 0.0f);
     fighter_player = Fighter(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 30.0f, 3, 10.0f);
+
+    enemies.clear();
+    enemies = {
+        Fighter(glm::vec3(750.0f, 50.0f, -90.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+        Fighter(glm::vec3(600.0f, 20.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+        Fighter(glm::vec3(800.0f, 50.0f, 90.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+
+        Fighter(glm::vec3(2000.0f, 100.0f, -200.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
+        Fighter(glm::vec3(2100.0f, 100.0f, 200.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f)
+    };
+
     projectiles.clear();
 
     animacaoSaida();
