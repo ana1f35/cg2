@@ -1009,11 +1009,6 @@ void moverInimigos() {
             continue;
         }
 
-        // if (glm::distance(newPosition, fighter_player.position) < 10.0f) {
-        //     it = enemies.erase(it);
-        //     continue;
-        // }
-
         // Verificar se o inimigo está fora do ângulo de visão do player
         glm::vec3 toEnemy = glm::normalize(it->position - fighter_player.position);
         float dotProduct = glm::dot(fighter_player.front, toEnemy);
@@ -1757,29 +1752,6 @@ void renderProjectiles(Shader& shader) {
 
 }
 
-
-// void shootProjectile(const Fighter& fighter) {
-//     glm::vec3 projectilePosition = fighter.position + fighter.front * 5.0f;
-//     glm::vec3 direction = fighter.front;
-
-//     // Encontre o inimigo mais próximo
-//     Fighter* closestEnemy = findClosestEnemy(fighter.position);
-//     if (closestEnemy) {
-//         float distance = glm::distance(fighter.position, closestEnemy->position);
-//         float maxAutoAimDistance = 500.0f; // Defina a distância máxima para a mira automática
-
-//         if (distance < maxAutoAimDistance) {
-//             direction = glm::normalize(closestEnemy->position - fighter.position);
-//         }
-//     }
-
-//     // Adiciona um novo projétil ao vetor
-//     projectiles.emplace_back(projectilePosition, direction, 50.0f, 2.0f, 0); // Velocidade ajustada para 50.0f
-
-//     std::cout << "Projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
-// }
-
-
 void shootProjectile(const Fighter& fighter, int origin) {
     glm::vec3 projectilePosition = fighter.position + fighter.front * 5.0f;
     glm::vec3 direction = fighter.front;
@@ -1816,33 +1788,6 @@ void updateProjectiles(float deltaTime) {
 
     std::cout << "Projectiles updated. Count: " << projectiles.size() << std::endl;
 }
-
-// void shootEnemyProjectiles(float deltaTime) {
-//     static float lastShootTime = 0.0f;
-//     float currentTime = glfwGetTime();
-
-//     // Atira a cada 2 segundos
-//     if (currentTime - lastShootTime >= 3.0f) {
-//         for (const auto& enemy : enemies) {
-//             glm::vec3 projectilePosition = enemy.position + enemy.front * 5.0f; // Posição inicial
-//             glm::vec3 projectileDirection = enemy.front;
-
-//             float distance = glm::distance(enemy.position, fighter_player.position);
-//             float maxAutoAimDistance = 500.0f; // Defina a distância máxima para a mira automática
-
-//             if (distance < maxAutoAimDistance) {
-//                 projectileDirection = glm::normalize(fighter_player.position - enemy.position);
-//             }
-
-//             // Velocidade reduzida para projéteis inimigos
-//             float projectileSpeed = 20.0f; // Ajuste conforme necessário
-//             projectiles.emplace_back(projectilePosition, projectileDirection, projectileSpeed, 2.0f, 1);
-
-//             std::cout << "Enemy projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
-//         }
-//         lastShootTime = currentTime;
-//     }
-// }
 
 void shootEnemyProjectiles(float deltaTime) {
     static float lastShootTime = 0.0f;
