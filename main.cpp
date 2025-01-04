@@ -164,14 +164,13 @@ float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
 
 Fighter fighter_player(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 30.0f, 3, 10.0f);
-// Inicialmente estão 3 estacionados
 std::vector<Fighter> enemies = {
-    Fighter(glm::vec3(750.0f, 30.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+    Fighter(glm::vec3(750.0f, 50.0f, -90.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
     Fighter(glm::vec3(600.0f, 20.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
-    Fighter(glm::vec3(800.0f, 30.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+    Fighter(glm::vec3(800.0f, 50.0f, 90.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
 
-    Fighter(glm::vec3(2000.0f, 100.0f, -300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
-    Fighter(glm::vec3(2100.0f, 100.0f, 300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f)
+    Fighter(glm::vec3(2000.0f, 100.0f, -200.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
+    Fighter(glm::vec3(2100.0f, 100.0f, 200.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f)
 };
 
 std::vector<Projectile> projectiles;
@@ -207,7 +206,7 @@ std::map<GLchar, Character> Characters, Characters2;
 unsigned int VAOt, VBOt;
 glm::vec3 textColor = glm::vec3(255.0f / 255.0f, 232.0f / 255.0f, 31.0f / 255.0f);
 
-ALuint buffer, source, buffer2, source2, buffer3, source3;
+ALuint buffer, source, buffer2, source2, buffer3, source3, buffer4, source4;
 ALCdevice* device;
 ALCcontext* context;
 
@@ -300,7 +299,7 @@ int main() {
     glm::vec3 cameraOffset(0.0f, 10.0f, 60.0f);
     camera.Position = fighter_player.position - fighter_player.front * cameraOffset.z + glm::vec3(0.0f, cameraOffset.y, 0.0f);
 
-    if(inicializarSound(device, context, buffer, buffer2, buffer3, source, source2, source3) == -1)
+    if(inicializarSound(device, context, buffer, buffer2, buffer3, buffer4, source, source2, source3, source4) == -1)
         return -1;
 
     // Render loop
@@ -336,7 +335,7 @@ int main() {
         // Durante o jogo mostra: vida e pontuação
         else if(gameState == 1){
             std::string vida = "Health: " + std::to_string(fighter_player.hp);
-            std::string pontuacaoStr = "Points: " + std::to_string(pontuacao);
+            std::string pontuacaoStr = "Score: " + std::to_string(pontuacao);
             RenderText(vida, SCR_WIDTH - 300.0f, SCR_HEIGHT - 100.0f, 1.0f, textColor, true);
             RenderText(pontuacaoStr, SCR_WIDTH - 300.0f, SCR_HEIGHT - 180.0f, 1.0f, textColor, true);
             moverInimigos();
@@ -351,9 +350,9 @@ int main() {
             static float lastSpawnTime = glfwGetTime();
             float currentSpawnTime = glfwGetTime();
             if (currentSpawnTime - lastSpawnTime >= 10.0f && fighter_player.position.x < enemyHangarPos.x - 500) {
-                enemies.push_back(Fighter(enemyHangarPos + glm::vec3(0.0f, 5.0f, -80.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
+                enemies.push_back(Fighter(enemyHangarPos + glm::vec3(0.0f, 5.0f, -100.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
                 enemies.push_back(Fighter(enemyHangarPos + glm::vec3(-100.0f, 5.0f, 0.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
-                enemies.push_back(Fighter(enemyHangarPos + glm::vec3(0.0f, 5.0f, 80.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
+                enemies.push_back(Fighter(enemyHangarPos + glm::vec3(0.0f, 5.0f, 100.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
                 animacaoInimigos();
                 lastSpawnTime = currentSpawnTime;
             }
@@ -393,7 +392,7 @@ int main() {
             float textWidth6 = controlsText6.length() * 25.0f;
             RenderText(controlsText6, (SCR_WIDTH - textWidth6) / 2.0f, SCR_HEIGHT / 2.0f - 250.0f, 1.0f,  textColor, true);
             float textWidth7 = controlsText7.length() * 25.0f;
-            RenderText(controlsText7, (SCR_WIDTH - textWidth7) / 2.0f, SCR_HEIGHT / 2.0f - 300.0f, 1.0f, textColor, true);
+            RenderText(controlsText7, (SCR_WIDTH - textWidth7) / 2.0f, SCR_HEIGHT / 2.0f - 350.0f, 1.0f, textColor, true);
         }
         // Terminado
         else if(gameState == 4){
@@ -401,7 +400,7 @@ int main() {
             std::string finalScore = "Final Score: " + std::to_string(pontuacao);
             std::string finalHealth = "HP Left: " + std::to_string(fighter_player.hp);
             std::string restart = "Press SPACE To Restart";
-            float gameOverWidth = gameOver.length() * 48.0f;
+            float gameOverWidth = gameOver.length() * 52.0f;
             RenderText(gameOver, (SCR_WIDTH - gameOverWidth) / 2.0f, SCR_HEIGHT / 2.0f + 100.0f, 1.0f, textColor, false);
             float scoreWidth = finalScore.length() * 25.0f;
             RenderText(finalScore, (SCR_WIDTH - scoreWidth) / 2.0f, SCR_HEIGHT / 2.0f, 1.0f, textColor, true);
@@ -410,7 +409,7 @@ int main() {
             float restartWidth = restart.length() * 25.0f;
             RenderText(restart, (SCR_WIDTH - restartWidth) / 2.0f, SCR_HEIGHT / 2.0f - 200.0f, 1.0f, textColor, true);
         }
-
+        
         // Swap buffers and poll IO events
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -1051,7 +1050,7 @@ void moverInimigos() {
 }
 
 void animacaoInimigos(){
-    float targetY = 30.0f;
+    float targetY = 40.0f;
     float speed = 0.5f; 
 
     bool allEnemiesAtTarget = false;
@@ -2022,17 +2021,20 @@ void desenhaAlvo(){
 void restartGame(){
     cameraMode = 0;
     pontuacao = 0;
-    enemies = {
-        Fighter(glm::vec3(750.0f, 30.0f, -80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
-        Fighter(glm::vec3(600.0f, 20.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
-        Fighter(glm::vec3(800.0f, 30.0f, 80.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
-
-        Fighter(glm::vec3(2000.0f, 100.0f, -300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
-        Fighter(glm::vec3(2100.0f, 100.0f, 300.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f)
-    };
-
+    
     camera = glm::vec3(0.0f, 0.0f, 0.0f);
     fighter_player = Fighter(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 30.0f, 3, 10.0f);
+
+    enemies.clear();
+    enemies = {
+        Fighter(glm::vec3(750.0f, 50.0f, -90.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+        Fighter(glm::vec3(600.0f, 20.0f, 0.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+        Fighter(glm::vec3(800.0f, 50.0f, 90.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
+
+        Fighter(glm::vec3(2000.0f, 100.0f, -200.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f),
+        Fighter(glm::vec3(2100.0f, 100.0f, 200.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f)
+    };
+
     projectiles.clear();
 
     animacaoSaida();
