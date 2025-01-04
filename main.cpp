@@ -72,6 +72,11 @@ struct Character {
     unsigned int Advance;   // Horizontal offset to advance to next glyph
 };
 
+struct Explosion {
+    glm::vec3 position;
+    float startTime;
+};
+
 // Declaração das funções
 int loadModel(const std::string& filePath, Model& model, bool centerModel);
 void loadMaterials(const std::string& mtlFilePath, std::vector<MaterialInfo>& materials);
@@ -105,12 +110,15 @@ Fighter* findClosestEnemy(const glm::vec3& playerPosition);
 void desenhaAlvo();
 void restartGame();
 void renderIntro();
+void setupSquare();
 
 // Variáveis globais
 unsigned int SCR_WIDTH = 800;
 unsigned int SCR_HEIGHT = 600;
 GLFWwindow* window;
 std::map<std::string, std::vector<MaterialInfo>> modelMaterials;
+std::vector<Explosion> explosions;
+unsigned int explosionTextureID;
 
 Model hangarModel;
 Model tieModel;
@@ -121,7 +129,7 @@ Shader* lightingShader;
 Shader* lightingCubeShader;
 Shader* textShader;
 Shader* hitBoxShader;
-Shader* particleShader;
+Shader* explosionShader;
 Shader* lightingPTexShader;
 
 unsigned int cameraMode = 0;
@@ -190,6 +198,7 @@ unsigned int lightVBO, lightCubeVAO;
 unsigned int skyboxVAO, skyboxVBO;
 unsigned int boundingBoxVBO, boundingBoxEBO, boundingBoxVAO;
 unsigned int VAOProjectile, numProjectileVertices, VBOProjectile;
+unsigned int exVAO, exVBO;
 
 // Skybox texture
 unsigned int cubemapTexture; 
@@ -286,6 +295,12 @@ int main() {
     skyboxShader = new Shader("shaders/skybox.vs", "shaders/skybox.fs");
     hitBoxShader = new Shader("shaders/hitbox.vs", "shaders/hitbox.fs");
     lightingPTexShader = new Shader("shaders/lightTex.vs", "shaders/lightTex.fs");
+    explosionShader = new Shader("shaders/explosion.vs", "shaders/explosion.fs");
+
+
+    explosionTextureID = loadTexture("models/explosion.png");
+
+    setupSquare();
     
     // Setup skybox and load texture
     setupSkybox();
@@ -1408,6 +1423,35 @@ void renderScene() {
     
     glDepthFunc(GL_LESS); // Restore depth function
 
+    // Render explosions
+    explosionShader->use();
+    explosionShader->setMat4("view", camera.GetViewMatrix());
+    explosionShader->setMat4("projection", glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f));
+    explosionShader->setInt("explosionTexture", 0);
+
+    float currentTime = glfwGetTime();
+    for (auto it = explosions.begin(); it != explosions.end();) {
+        if (currentTime - it->startTime > 0.3f) {
+            // std::cout << "Explosion removed" << std::endl;
+            it = explosions.erase(it); // Remove explosion after 2 seconds
+        } else {
+            // std::cout << "Explosion rendered" << std::endl;
+            glm::mat4 model = glm::translate(glm::mat4(1.0f), it->position);
+            model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            model = glm::scale(model, glm::vec3(25.0f));
+            explosionShader->setMat4("model", model);
+
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, explosionTextureID);
+
+            glBindVertexArray(exVAO); // Assuming exVAO is set up for a square
+            glDrawArrays(GL_TRIANGLES, 0, 6); // Assuming 6 vertices for a square
+            glBindVertexArray(0);
+
+            ++it;
+        }
+    }
+
     glm::vec3 position = fighter_player.position;
     float radius = fighter_player.collisionRadius;
 
@@ -1419,8 +1463,6 @@ void renderScene() {
     }
 
     desenhaAlvo();
-
-
 }
 
 void renderTextures(Model *Tmodel){
@@ -1648,8 +1690,8 @@ void RenderText(std::string text, float x, float y, float scale, glm::vec3 color
 
 bool isColliding(glm::vec3 projPosition, float projRadius, glm::vec3 enemyPosition, float enemyRadius) {
     float distance = glm::distance(projPosition, enemyPosition);
-    std::cout << "Distance between projectile and enemy: " << distance << std::endl;
-    std::cout << "Sum of radii: " << (projRadius + enemyRadius) << std::endl;
+    // std::cout << "Distance between projectile and enemy: " << distance << std::endl;
+    // std::cout << "Sum of radii: " << (projRadius + enemyRadius) << std::endl;
     return distance < (projRadius + enemyRadius);
 }
 
@@ -1660,19 +1702,20 @@ void checkCollisions() {
         // Verifica colisões com inimigos
         if (projIt->origin == 0) { // Projétil do jogador
             for (auto enemyIt = enemies.begin(); enemyIt != enemies.end();) {
-                std::cout << "Checking collision between projectile at (" 
-                          << projIt->position.x << ", " << projIt->position.y << ", " << projIt->position.z 
-                          << ") with radius " << projIt->collisionRadius 
-                          << " and enemy at (" 
-                          << enemyIt->position.x << ", " << enemyIt->position.y << ", " << enemyIt->position.z 
-                          << ") with radius " << enemyIt->collisionRadius << std::endl;
+                // std::cout << "Checking collision between projectile at (" 
+                //           << projIt->position.x << ", " << projIt->position.y << ", " << projIt->position.z 
+                //           << ") with radius " << projIt->collisionRadius 
+                //           << " and enemy at (" 
+                //           << enemyIt->position.x << ", " << enemyIt->position.y << ", " << enemyIt->position.z 
+                //           << ") with radius " << enemyIt->collisionRadius << std::endl;
 
                 if (isColliding(projIt->position, projIt->collisionRadius, enemyIt->position, enemyIt->collisionRadius)) {
-                    std::cout << "Collision detected between projectile and enemy" << std::endl;
+                    // std::cout << "Collision detected between projectile and enemy" << std::endl;
                     enemyIt->hp -= 1; // Reduz a vida do inimigo
 
                     if (enemyIt->hp <= 0) {
                         std::cout << "Enemy destroyed" << std::endl;
+                        explosions.push_back({enemyIt->position, (float) glfwGetTime()});
                         pontuacao += 10; // Incrementa pontuação
                         enemyIt = enemies.erase(enemyIt); // Remove o inimigo destruído
                     } else {
@@ -1687,14 +1730,14 @@ void checkCollisions() {
             }
         } else { // Projétil do inimigo
             if (isColliding(projIt->position, projIt->collisionRadius, fighter_player.position, fighter_player.collisionRadius)) {
-                std::cout << "Collision detected between projectile and player" << std::endl;
+                // std::cout << "Collision detected between projectile and player" << std::endl;
                 fighter_player.hp -= 1; // Reduz a vida do jogador
                 collisionDetected = true;
             }
         }
 
         if (collisionDetected) {
-            std::cout << "Projectile removed" << std::endl;
+            // std::cout << "Projectile removed" << std::endl;
             projIt = projectiles.erase(projIt); // Remove o projétil que colidiu
         } else {
             ++projIt;
@@ -1800,13 +1843,13 @@ void shootProjectile(const Fighter& fighter, int origin) {
     // Adiciona um novo projétil ao vetor
     projectiles.emplace_back(projectilePosition, direction, 20.0f, 2.0f, origin); // Velocidade ajustada para 50.0f
 
-    std::cout << "Projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
+    // std::cout << "Projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
 }
 
 void updateProjectiles(float deltaTime) {
     for (auto& proj : projectiles) {
         proj.position += proj.direction * proj.speed * deltaTime * 0.5f;
-        std::cout << "Projectile updated to position: " << proj.position.x << ", " << proj.position.y << ", " << proj.position.z << std::endl;
+        // std::cout << "Projectile updated to position: " << proj.position.x << ", " << proj.position.y << ", " << proj.position.z << std::endl;
     }
 
     // Remover projéteis que saíram dos limites
@@ -1814,7 +1857,7 @@ void updateProjectiles(float deltaTime) {
         return proj.position.z > 800.0f || proj.position.z < -800.0f; // Limites arbitrários
     }), projectiles.end());
 
-    std::cout << "Projectiles updated. Count: " << projectiles.size() << std::endl;
+    // std::cout << "Projectiles updated. Count: " << projectiles.size() << std::endl;
 }
 
 // void shootEnemyProjectiles(float deltaTime) {
@@ -2061,4 +2104,34 @@ void renderIntro(){
         scrollOffset = 0.0f; // Reset the scroll after the text has scrolled off the screen
         gameState = 0; // Change to game mode 0
     }
+}
+
+
+void setupSquare() {
+    float vertices[] = {
+        // positions        // texture coords
+        -0.5f,  0.5f, 0.0f,  0.0f, 1.0f,
+        -0.5f, -0.5f, 0.0f,  0.0f, 0.0f,
+         0.5f, -0.5f, 0.0f,  1.0f, 0.0f,
+
+        -0.5f,  0.5f, 0.0f,  0.0f, 1.0f,
+         0.5f, -0.5f, 0.0f,  1.0f, 0.0f,
+         0.5f,  0.5f, 0.0f,  1.0f, 1.0f
+    };
+
+    glGenVertexArrays(1, &exVAO);
+    glGenBuffers(1, &exVBO);
+
+    glBindVertexArray(exVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, exVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 }
