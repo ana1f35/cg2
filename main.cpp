@@ -1081,7 +1081,7 @@ void animacaoInimigos(){
 
         // Render text
         std::string vida = "Health: " + std::to_string(fighter_player.hp);
-        std::string pontuacaoStr = "Points: " + std::to_string(pontuacao);
+        std::string pontuacaoStr = "Score: " + std::to_string(pontuacao);
         RenderText(vida, SCR_WIDTH - 300.0f, SCR_HEIGHT - 100.0f, 1.0f, textColor, true);
         RenderText(pontuacaoStr, SCR_WIDTH - 300.0f, SCR_HEIGHT - 180.0f, 1.0f, textColor, true);
 
@@ -1685,8 +1685,8 @@ void RenderText(std::string text, float x, float y, float scale, glm::vec3 color
 
 bool isColliding(glm::vec3 projPosition, float projRadius, glm::vec3 enemyPosition, float enemyRadius) {
     float distance = glm::distance(projPosition, enemyPosition);
-    // std::cout << "Distance between projectile and enemy: " << distance << std::endl;
-    // std::cout << "Sum of radii: " << (projRadius + enemyRadius) << std::endl;
+    std::cout << "Distance between projectile and enemy: " << distance << std::endl;
+    std::cout << "Sum of radii: " << (projRadius + enemyRadius) << std::endl;
     return distance < (projRadius + enemyRadius);
 }
 
@@ -1697,16 +1697,17 @@ void checkCollisions() {
         // Verifica colisões com inimigos
         if (projIt->origin == 0) { // Projétil do jogador
             for (auto enemyIt = enemies.begin(); enemyIt != enemies.end();) {
-                // std::cout << "Checking collision between projectile at (" 
-                //           << projIt->position.x << ", " << projIt->position.y << ", " << projIt->position.z 
-                //           << ") with radius " << projIt->collisionRadius 
-                //           << " and enemy at (" 
-                //           << enemyIt->position.x << ", " << enemyIt->position.y << ", " << enemyIt->position.z 
-                //           << ") with radius " << enemyIt->collisionRadius << std::endl;
+                std::cout << "Checking collision between projectile at (" 
+                          << projIt->position.x << ", " << projIt->position.y << ", " << projIt->position.z 
+                          << ") with radius " << projIt->collisionRadius 
+                          << " and enemy at (" 
+                          << enemyIt->position.x << ", " << enemyIt->position.y << ", " << enemyIt->position.z 
+                          << ") with radius " << enemyIt->collisionRadius << std::endl;
 
                 if (isColliding(projIt->position, projIt->collisionRadius, enemyIt->position, enemyIt->collisionRadius)) {
-                    // std::cout << "Collision detected between projectile and enemy" << std::endl;
+                    std::cout << "Collision detected between projectile and enemy" << std::endl;
                     enemyIt->hp -= 1; // Reduz a vida do inimigo
+                    std::cout << "Enemy HP: " << enemyIt->hp << std::endl;
 
                     if (enemyIt->hp <= 0) {
                         std::cout << "Enemy destroyed" << std::endl;
@@ -1725,14 +1726,14 @@ void checkCollisions() {
             }
         } else { // Projétil do inimigo
             if (isColliding(projIt->position, projIt->collisionRadius, fighter_player.position, fighter_player.collisionRadius)) {
-                // std::cout << "Collision detected between projectile and player" << std::endl;
+                std::cout << "Collision detected between projectile and player" << std::endl;
                 fighter_player.hp -= 1; // Reduz a vida do jogador
                 collisionDetected = true;
             }
         }
 
         if (collisionDetected) {
-            // std::cout << "Projectile removed" << std::endl;
+            std::cout << "Projectile removed" << std::endl;
             projIt = projectiles.erase(projIt); // Remove o projétil que colidiu
         } else {
             ++projIt;
@@ -1812,11 +1813,10 @@ void shootProjectile(const Fighter& fighter, int origin) {
         }
     }
 
-    // Adiciona um novo projétil ao vetor
-    projectiles.emplace_back(projectilePosition, direction, 20.0f, 2.0f, origin); // Velocidade ajustada para 50.0f
-
-    // std::cout << "Projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
+    float projRadius = 2.0f; // Defina o raio de colisão para o projétil
+    projectiles.emplace_back(projectilePosition, direction, 20.0f, projRadius, origin); // Velocidade ajustada para 20.0f
 }
+
 
 void updateProjectiles(float deltaTime) {
     for (auto& proj : projectiles) {
@@ -1826,7 +1826,7 @@ void updateProjectiles(float deltaTime) {
 
     // Remover projéteis que saíram dos limites
     projectiles.erase(std::remove_if(projectiles.begin(), projectiles.end(), [](const Projectile& proj) {
-        return proj.position.z > 800.0f || proj.position.z < -800.0f; // Limites arbitrários
+        return proj.position.z > 600.0f || proj.position.z < -600.0f; // Limites arbitrários
     }), projectiles.end());
 
     // std::cout << "Projectiles updated. Count: " << projectiles.size() << std::endl;
@@ -1839,21 +1839,27 @@ void shootEnemyProjectiles(float deltaTime) {
     // Atira a cada 3 segundos
     if (currentTime - lastShootTime >= 3.0f) {
         for (const auto& enemy : enemies) {
-            glm::vec3 projectilePosition = enemy.position + enemy.front * 5.0f; // Posição inicial
-            glm::vec3 projectileDirection = glm::normalize(fighter_player.position - enemy.position);
+            // Verificar a distância entre o inimigo e o jogador
+            float distanceToPlayer = glm::distance(enemy.position, fighter_player.position);
+            float maxShootingDistance = 600.0f; // Defina a distância máxima para atirar
 
-            // Introduzir uma variação aleatória na direção do projétil
-            float variation = 0.05f; // Ajuste conforme necessário
-            projectileDirection.x += ((rand() % 100) / 100.0f - 0.5f) * variation;
-            projectileDirection.y += ((rand() % 100) / 100.0f - 0.5f) * variation;
-            projectileDirection.z += ((rand() % 100) / 100.0f - 0.5f) * variation;
-            projectileDirection = glm::normalize(projectileDirection); // Normalizar a direção
+            if (distanceToPlayer <= maxShootingDistance) {
+                glm::vec3 projectilePosition = enemy.position + enemy.front * 5.0f; // Posição inicial
+                glm::vec3 projectileDirection = glm::normalize(fighter_player.position - enemy.position);
 
-            // Velocidade reduzida para projéteis inimigos
-            float projectileSpeed = 20.0f; // Ajuste conforme necessário
-            projectiles.emplace_back(projectilePosition, projectileDirection, projectileSpeed, 2.0f, 1);
+                // Introduzir uma variação aleatória na direção do projétil
+                float variation = 0.05f; // Ajuste conforme necessário
+                projectileDirection.x += ((rand() % 100) / 100.0f - 0.5f) * variation;
+                projectileDirection.y += ((rand() % 100) / 100.0f - 0.5f) * variation;
+                projectileDirection.z += ((rand() % 100) / 100.0f - 0.5f) * variation;
+                projectileDirection = glm::normalize(projectileDirection); // Normalizar a direção
 
-            std::cout << "Enemy projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
+                // Velocidade ajustada para projéteis inimigos
+                float projectileSpeed = 20.0f; // Ajuste conforme necessário
+                projectiles.emplace_back(projectilePosition, projectileDirection, projectileSpeed, 2.0f, 1);
+
+                std::cout << "Enemy projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
+            }
         }
         lastShootTime = currentTime;
     }
