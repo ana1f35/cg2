@@ -134,10 +134,14 @@ ALCcontext* context;
  * @brief A função principal inicializa e configura o GLFW, cria uma janela em fullscreen,
  * usa o GLAD para permitir o uso de todas as funções do OpenGL e é configurado o estado global do mesmo.
  * São compilados e construídos os shaders recorrendo á classe Shader. 
- * Depois carrega os dois modelos (hangar e fighter) e entra no ciclo de renderização.
+ * Depois carrega os três modelos (hangar, nave do jogador e nave inimiga).
+ * Depois destes passos e de inicializar todas as variáveis globais necessárias, 
+ * começa então o ciclo de renderização. 
  * 
- * O ciclo de renderização processa a existência de inputs, verifica condições de aterragem e partida do fighter,
- * renderiza toda a cena. No fim de cada iteração, troca os buffers e pesquisa eventos de IO até que a janela deva fechar.
+ * A cada iteração do ciclo é verificado se a música de fundo continua a ser reproduzida 
+ * e são verificados os eventos de input. Dependendo do estado atual do jogo serão rederizadas diferentes componentes
+ * e realizadas diferentes operações.
+ * No fim de cada iteração, troca os buffers e pesquisa eventos de IO até que a janela deva fechar.
  * 
  * Após o loop, desaloca recursos e termina o GLFW.
  * 
