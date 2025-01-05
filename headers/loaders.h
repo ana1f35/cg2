@@ -4,8 +4,6 @@
 #include "common.h"
 #include "structs.h"
 
-extern unsigned int lightCubeVAO;
-extern unsigned int lightVBO;
 extern unsigned int VAOt;
 extern unsigned int VBOt;
 extern std::map<GLchar, Character> Characters;

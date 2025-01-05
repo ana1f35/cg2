@@ -228,66 +228,6 @@ unsigned int loadTexture(const char* path) {
     return textureID;
 }
 
-
-/**
- * @brief Função utilizada para carregar um cubo de luz para ser usado na cena.
- */
-void loadLuz(){
-    float vertices[] = {
-        -1.5f, -0.1f, -1.5f, 
-         1.5f, -0.1f, -1.5f,  
-         1.5f,  0.1f, -1.5f,  
-         1.5f,  0.1f, -1.5f,  
-        -1.5f,  0.1f, -1.5f, 
-        -1.5f, -0.1f, -1.5f, 
-
-        -1.5f, -0.1f,  1.5f, 
-         1.5f, -0.1f,  1.5f,  
-         1.5f,  0.1f,  1.5f,  
-         1.5f,  0.1f,  1.5f,  
-        -1.5f,  0.1f,  1.5f, 
-        -1.5f, -0.1f,  1.5f, 
-
-        -1.5f,  0.1f,  1.5f, 
-        -1.5f,  0.1f, -1.5f, 
-        -1.5f, -0.1f, -1.5f, 
-        -1.5f, -0.1f, -1.5f, 
-        -1.5f, -0.1f,  1.5f, 
-        -1.5f,  0.1f,  1.5f, 
-
-         1.5f,  0.1f,  1.5f,  
-         1.5f,  0.1f, -1.5f,  
-         1.5f, -0.1f, -1.5f,  
-         1.5f, -0.1f, -1.5f,  
-         1.5f, -0.1f,  1.5f,  
-         1.5f,  0.1f,  1.5f,  
-
-        -1.5f, -0.1f, -1.5f, 
-         1.5f, -0.1f, -1.5f,  
-         1.5f, -0.1f,  1.5f,  
-         1.5f, -0.1f,  1.5f,  
-        -1.5f, -0.1f,  1.5f, 
-        -1.5f, -0.1f, -1.5f, 
-
-        -1.5f,  0.1f, -1.5f, 
-         1.5f,  0.1f, -1.5f,  
-         1.5f,  0.1f,  1.5f,  
-         1.5f,  0.1f,  1.5f,  
-        -1.5f,  0.1f,  1.5f, 
-        -1.5f,  0.1f, -1.5f, 
-    };
-
-    glGenVertexArrays(1, &lightCubeVAO);
-    glBindVertexArray(lightCubeVAO);
-
-    glGenBuffers(1, &lightVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, lightVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-}
-
 /**
  * @brief Função utilizada para carregar texto a partir de um ficheiro de fonte TrueType.
  * 
