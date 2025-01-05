@@ -16,5 +16,6 @@ void loadMaterials(const std::string& mtlFilePath, std::vector<MaterialInfo>& ma
 unsigned int loadTexture(const char* path);
 void loadLuz();
 int loadText();
+unsigned int loadCubemap(std::vector<std::string> faces);
 
 #endif

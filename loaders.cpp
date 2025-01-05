@@ -1,4 +1,4 @@
-#include "include/loaders.h"
+#include "headers/loaders.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
@@ -417,4 +417,41 @@ int loadText(){
     glBindVertexArray(0);
 
     return 0;
+}
+
+
+/**
+ * @brief Função que carrega as varias texturas para o skybox.
+ */
+unsigned int loadCubemap(std::vector<std::string> faces) {
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+    stbi_set_flip_vertically_on_load(false);
+    
+    int width, height, nrChannels;
+    for (unsigned int i = 0; i < faces.size(); i++) {
+        std::cout << "Loading texture: " << faces[i] << std::endl; // Debug print
+        unsigned char *data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+        if (data) {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 
+                      0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+            stbi_image_free(data);
+            std::cout << "Successfully loaded texture " << i << std::endl;
+        } else {
+            std::cout << "Failed to load texture: " << faces[i] << std::endl;
+            std::cout << "Error: " << stbi_failure_reason() << std::endl;
+            stbi_image_free(data);
+            return 0;
+        }
+    }
+
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    return textureID;
 }

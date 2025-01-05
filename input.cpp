@@ -1,4 +1,4 @@
-#include "include/input.h"
+#include "headers/input.h"
 
 /**
  * @brief Esta função verifica inputs de teclas específicas e atualiza a posição e rotação do fighter com base no input. 

@@ -1,4 +1,4 @@
-#include "include/setups.h"
+#include "headers/setups.h"
 
 // Função que configura o skybox
 void setupSkybox() {
