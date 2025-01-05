@@ -159,9 +159,10 @@ void renderScene() {
 
     float currentTime = glfwGetTime();
     for (auto it = explosions.begin(); it != explosions.end();) {
+        //remove as explosões que já duram mais de 0.3 segundos
         if (currentTime - it->startTime > 0.3f) {
             // std::cout << "Explosion removed" << std::endl;
-            it = explosions.erase(it); // Remove explosion after 2 seconds
+            it = explosions.erase(it);
         } else {
             // std::cout << "Explosion rendered" << std::endl;
             glm::mat4 model = glm::translate(glm::mat4(1.0f), it->position);
@@ -172,8 +173,8 @@ void renderScene() {
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, explosionTextureID);
 
-            glBindVertexArray(exVAO); // Assuming exVAO is set up for a square
-            glDrawArrays(GL_TRIANGLES, 0, 6); // Assuming 6 vertices for a square
+            glBindVertexArray(exVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
             glBindVertexArray(0);
 
             ++it;
