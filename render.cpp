@@ -417,6 +417,14 @@ void RenderText(std::string text, float x, float y, float scale, glm::vec3 color
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+/**
+ * @brief Renderiza todos os projéteis na cena.
+ * 
+ * Esta função percorre a lista de projéteis e renderiza cada um deles usando o shader fornecido.
+ * A cor do projétil é definida com base na sua origem (verde para projéteis do jogador e vermelho para projéteis dos inimigos).
+ * 
+ * @param shader Referência ao shader usado para renderizar os projéteis.
+ */
 void renderProjectiles(Shader& shader) {
     shader.use();
 
@@ -488,6 +496,18 @@ void renderIntro(){
     }
 }
 
+
+/**
+ * @brief Renderiza uma hitbox ao redor de uma posição específica.
+ * 
+ * Esta função desenha uma hitbox ao redor de uma posição especificada, escalada
+ * pelo raio de colisão e um fator de escala. A hitbox é desenhada de modo a facilitar
+ * a visualizacão da área de colisão de um objeto no espaço 3D.
+ * 
+ * @param position Posição central da caixa delimitadora no espaço 3D.
+ * @param radius Raio de colisão usado para escalar a caixa delimitadora.
+ * @param scaleFactor Fator de escala adicional para ajustar o tamanho da caixa delimitadora.
+ */
 void renderBoundingBox(glm::vec3 position, float radius, float scaleFactor) {
     // std::cout << "Rendering bounding box at position: " 
     //           << position.x << ", " << position.y << ", " << position.z 

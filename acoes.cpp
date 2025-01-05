@@ -117,20 +117,54 @@ void animacaoInimigos(){
     }
 }
 
+/**
+ * @brief Verifica se há uma colisão entre um projétil e um inimigo.
+ * 
+ * Esta função determina se um projétil colidiu com um inimigo, calculando a distância
+ * entre suas posições e comparando essa distância com a soma de seus raios de colisão.
+ * 
+ * A colisão é considerada ocorrida se a distância entre o centro do projétil e o centro
+ * do inimigo for menor que a soma dos raios de colisão de ambos, ou seja, a hitbox dos 
+ * dois objetos se sobrepõem ou se encostam.
+ * 
+ * @param projPosition Posição do projétil.
+ * @param projRadius Raio de colisão do projétil.
+ * @param enemyPosition Posição do inimigo.
+ * @param enemyRadius Raio de colisão do inimigo.
+ * @return true Se houve colisão.
+ * @return false Se não houve colisão.
+ */
+
 bool isColliding(glm::vec3 projPosition, float projRadius, glm::vec3 enemyPosition, float enemyRadius) {
+    // Calcula a distância entre o projétil e o inimigo
     float distance = glm::distance(projPosition, enemyPosition);
+    
+    // Print para Debug
     std::cout << "Distance between projectile and enemy: " << distance << std::endl;
     std::cout << "Sum of radii: " << (projRadius + enemyRadius) << std::endl;
+    
+    // Verifica se a distância é menor que a soma dos raios de colisão
     return distance < (projRadius + enemyRadius);
 }
 
+/**
+ * @brief Verifica colisões entre projéteis e inimigos ou o jogador.
+ * 
+ * Esta função percorre a lista de projéteis e verifica se há colisões com inimigos
+ * (se o projétil for do jogador) ou com o jogador (se o projétil for de um inimigo).
+ * Se uma colisão for detectada, a vida do inimigo ou do jogador é reduzida e o projétil
+ * é removido. Se a vida do inimigo chegar a zero, ele é destruído e removido da lista.
+ */
+
 void checkCollisions() {
+    // Percorre todos os projéteis
     for (auto projIt = projectiles.begin(); projIt != projectiles.end();) {
         bool collisionDetected = false;
 
         // Verifica colisões com inimigos
-        if (projIt->origin == 0) { // Projétil do jogador
+        if (projIt->origin == 0) {   // Projétil do jogador
             for (auto enemyIt = enemies.begin(); enemyIt != enemies.end();) {
+                // Print para Debug
                 std::cout << "Checking collision between projectile at (" 
                           << projIt->position.x << ", " << projIt->position.y << ", " << projIt->position.z 
                           << ") with radius " << projIt->collisionRadius 
@@ -138,15 +172,17 @@ void checkCollisions() {
                           << enemyIt->position.x << ", " << enemyIt->position.y << ", " << enemyIt->position.z 
                           << ") with radius " << enemyIt->collisionRadius << std::endl;
 
+                // Verifica se há colisão entre o projétil e o inimigo
                 if (isColliding(projIt->position, projIt->collisionRadius, enemyIt->position, enemyIt->collisionRadius)) {
                     std::cout << "Collision detected between projectile and enemy" << std::endl;
                     enemyIt->hp -= 1; // Reduz a vida do inimigo
                     std::cout << "Enemy HP: " << enemyIt->hp << std::endl;
 
+                    // Se a vida do inimigo chegar a zero, ele é destruído
                     if (enemyIt->hp <= 0) {
                         std::cout << "Enemy destroyed" << std::endl;
                         explosions.push_back({enemyIt->position, (float) glfwGetTime()});
-                        pontuacao += 10; // Incrementa pontuação
+                        pontuacao += 10; // Aumenta o Score
                         enemyIt = enemies.erase(enemyIt); // Remove o inimigo destruído
                     } else {
                         ++enemyIt;
@@ -159,6 +195,7 @@ void checkCollisions() {
                 }
             }
         } else { // Projétil do inimigo
+            // Verifica se há colisão entre o projétil e o jogador
             if (isColliding(projIt->position, projIt->collisionRadius, fighter_player.position, fighter_player.collisionRadius)) {
                 std::cout << "Collision detected between projectile and player" << std::endl;
                 fighter_player.hp -= 1; // Reduz a vida do jogador
@@ -166,39 +203,61 @@ void checkCollisions() {
             }
         }
 
+        // Se uma colisão foi detectada, remove o projétil
         if (collisionDetected) {
             std::cout << "Projectile removed" << std::endl;
             projIt = projectiles.erase(projIt); // Remove o projétil que colidiu
         } else {
-            ++projIt;
+            ++projIt; // Move para o próximo projétil
         }
     }
 }
 
+/**
+ * @brief Dispara um projétil a partir da posição de um lutador (fighter).
+ * 
+ * Esta função cria um novo projétil na posição do fighter e o adiciona à lista de projéteis.
+ * Se o projétil for disparado pelo jogador, ele tentará mirar no inimigo mais próximo.
+ * 
+ * @param fighter Referência ao lutador que está disparando o projétil.
+ * @param origin Identificador da origem do projétil (0 para jogador, 1 para inimigo).
+ */
 void shootProjectile(const Fighter& fighter, int origin) {
+    // Define a posição inicial do projétil um pouco à frente do lutador
     glm::vec3 projectilePosition = fighter.position + fighter.front * 5.0f;
     glm::vec3 direction = fighter.front;
 
-    // Encontre o inimigo mais próximo
+    // Se o projétil for disparado pelo jogador, tenta mirar no inimigo mais próximo
     if (origin == 0) { // Verifica se a origem do tiro é do jogador principal
         Fighter* closestEnemy = findClosestEnemy(fighter.position);
         if (closestEnemy) {
             float distance = glm::distance(fighter.position, closestEnemy->position);
-            float maxAutoAimDistance = 700.0f; // Aumente a distância máxima para a mira automática
+            float maxAutoAimDistance = 700.0f; // Distância máxima para a mira automática
 
+            // Se o inimigo mais próximo estiver dentro da distância máxima, ajusta a direção do projétil
             if (distance < maxAutoAimDistance) {
                 direction = glm::normalize(closestEnemy->position - fighter.position);
             }
         }
     }
 
-    float projRadius = 2.0f; // Defina o raio de colisão para o projétil
+    // Define o raio de colisão para o projétil
+    float projRadius = 5.0f;
+    // Adiciona o novo projétil à lista de projéteis
     projectiles.emplace_back(projectilePosition, direction, 20.0f, projRadius, origin); // Velocidade ajustada para 20.0f
 }
 
-
+/**
+ * @brief Atualiza a posição de todos os projéteis na cena.
+ * 
+ * Esta função percorre a lista de projéteis e atualiza a posição de cada um deles com base na sua direção e velocidade.
+ * Se um projétil sair dos limites definidos da cena, ele é removido da lista de projéteis.
+ * 
+ * @param deltaTime Tempo decorrido desde a última atualização, usado para calcular o deslocamento do projétil.
+ */
 void updateProjectiles(float deltaTime) {
     for (auto& proj : projectiles) {
+        // Atualiza a posição do projétil com base na sua direção e velocidade
         proj.position += proj.direction * proj.speed * deltaTime * 0.5f;
         // std::cout << "Projectile updated to position: " << proj.position.x << ", " << proj.position.y << ", " << proj.position.z << std::endl;
     }
@@ -211,6 +270,17 @@ void updateProjectiles(float deltaTime) {
     // std::cout << "Projectiles updated. Count: " << projectiles.size() << std::endl;
 }
 
+
+/**
+ * @brief Dispara projéteis de todos os inimigos em direção ao jogador.
+ * 
+ * Esta função percorre a lista de inimigos e faz com que cada inimigo dispare um projétil
+ * em direção à posição atual do jogador. Os projéteis disparados são adicionados à lista
+ * de projéteis.
+ * 
+ * @param deltaTime Tempo decorrido desde a última atualização, usado para calcular o deslocamento do projétil.
+ *
+ */
 void shootEnemyProjectiles(float deltaTime) {
     static float lastShootTime = 0.0f;
     float currentTime = glfwGetTime();
@@ -244,10 +314,23 @@ void shootEnemyProjectiles(float deltaTime) {
     }
 }
 
+
+/**
+ * @brief Cria a geometria de um projétil cilíndrico e configura os buffers de vértices.
+ * 
+ * Esta função gera os vértices para um projétil cilíndrico com tampas superior e inferior,
+ * e configura os buffers de vértices (VBO) e o array de vértices (VAO) para renderização.
+ * 
+ * @param radius Raio do cilindro do projétil.
+ * @param height Altura do cilindro do projétil.
+ * @param segments Número de segmentos para definir a circunferência do cilindro.
+ * @param VAO Referência para o identificador do Vertex Array Object.
+ * @param VBO Referência para o identificador do Vertex Buffer Object.
+ */
 void createShot(float radius, float height, int segments, unsigned int& VAO, unsigned int& VBO){
     std::vector<float> shotVertices;
 
-    // Gerar vértices para as tampas superior e inferior
+    // Gerar vértices para o topo e a base do cilindro
     for (int i = 0; i <= segments; ++i) {
         float angle = 2.0f * glm::pi<float>() * i / segments;
         float x = cos(angle) * radius;
@@ -279,6 +362,15 @@ void createShot(float radius, float height, int segments, unsigned int& VAO, uns
     glBindVertexArray(0);
 }
 
+/**
+ * @brief Encontra o inimigo mais próximo de uma posição especificada.
+ * 
+ * Esta função percorre a lista de inimigos e encontra o inimigo cuja posição está mais próxima
+ * da posição especificada. Retorna um ponteiro para o inimigo mais próximo ou nullptr se não houver inimigos.
+ * 
+ * @param playerPosition Posição de referência para encontrar o inimigo mais próximo.
+ * @return Fighter* Ponteiro para o inimigo mais próximo ou nullptr se não houver inimigos.
+ */
 Fighter* findClosestEnemy(const glm::vec3& playerPosition) {
     Fighter* closestEnemy = nullptr;
     float closestDistance = std::numeric_limits<float>::max();
@@ -319,3 +411,4 @@ void restartGame(){
 
     animacaoSaida();
 }
+
