@@ -178,17 +178,16 @@ void renderScene() {
         }
     }
 
-    glm::vec3 position = fighter_player.position;
-    float radius = fighter_player.collisionRadius;
+    // glm::vec3 position = fighter_player.position;
+    // float radius = fighter_player.collisionRadius;
 
-    renderBoundingBox(position, radius, 1.0);
+    // renderBoundingBox(position, radius, 1.0);
 
-    // Renderizar bounding boxes para os inimigos
-    for (const auto& enemy : enemies) {
-        renderBoundingBox(enemy.position, enemy.collisionRadius, 1.2);
-    }
+    // // Renderizar bounding boxes para os inimigos
+    // for (const auto& enemy : enemies) {
+    //     renderBoundingBox(enemy.position, enemy.collisionRadius, 1.2);
+    // }
 
-    desenhaAlvo();
 }
 
 
