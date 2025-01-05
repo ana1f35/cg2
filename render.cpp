@@ -1,16 +1,16 @@
 #include "headers/render.h"
 
 /**
- * @brief Esta função renderiza a cena com iluminação e os objetos.
- * Começa por limpar a tela, configurar a posição da câmera e configurar o shader de iluminação. 
- * .
+ * @brief Esta função renderiza a cena principal do jogo com iluminação e os objetos.
+ * Começa por limpar a tela, passando depois a movimentar automaticamente o jogador para a frente.
+ * Dependendo do modo de câmera ativado é configurada a posição e ângulos da câmera.
  */
 void renderScene() {
-    // Clear the screen
+    // Limpar a tela
     glClearColor(0.01f, 0.0f, 0.02f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
-    //movimento automatico em direção ao hangar inimigo
+    // Movimento automatico em direção ao hangar inimigo
     if(gameState == 1){
         glm::vec3 direction = glm::vec3(
             cos(glm::radians(fighter_player.directionY)) * cos(glm::radians(fighter_player.directionX)),
@@ -19,7 +19,7 @@ void renderScene() {
         );
         fighter_player.position += fighter_player.movementSpeed * direction * 0.05f;
 
-        // Gradually reset the fighter's rotation to 0
+        // Gradualmente repor a inclinação da nave quando para de virar
         if (fighter_player.rotation > 0.0f) {
             fighter_player.rotation -= 0.5f; 
             if (fighter_player.rotation < 0.0f) {
@@ -33,7 +33,7 @@ void renderScene() {
         }
     }
 
-    // Update camera position
+    // Atualizar a posição e ângulos da câmera dependendo do modo escolhido
     if(cameraMode == 0){
         glm::vec3 cameraOffset(0.0f, 10.0f, 60.0f);
         glm::vec3 finalPos = glm::vec3(fighter_player.position - fighter_player.front * cameraOffset.z + glm::vec3(0.0f, cameraOffset.y, 0.0f));
@@ -46,10 +46,10 @@ void renderScene() {
         camera.Position = fighter_player.position;
     }
     else {
-        glm::vec3 cameraOffset(100.0f, 300.0f, 0.0f); // Top view offset
+        glm::vec3 cameraOffset(100.0f, 300.0f, 0.0f); 
         camera.Position = fighter_player.position + cameraOffset;
-        camera.Front = glm::vec3(0.0f, -1.0f, 0.0f); // Look directly down
-        camera.Up = glm::vec3(1.0f, 0.0f, 0.0f); // Adjust the up vector
+        camera.Front = glm::vec3(0.0f, -1.0f, 0.0f);
+        camera.Up = glm::vec3(1.0f, 0.0f, 0.0f); 
         fighter_player.directionX = 0.0f;
         fighter_player.directionY = 0.0f;
         fighter_player.rotation = 0.0f;
@@ -65,7 +65,7 @@ void renderScene() {
 
     glm::mat4 model = glm::mat4(1.0f);
 
-    // Render inimigos with lightingPTexShader
+    // Render dos inimigos 
     for(Fighter enemy : enemies){
         model = glm::translate(glm::mat4(1.0f), enemy.position);
         model = glm::rotate(model, glm::radians(enemy.directionX + 90), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -80,7 +80,7 @@ void renderScene() {
     // Activar o shader basico e definir os seus uniformes
     lightsActivate(lightingShader, view, projection);
 
-    // Render hangars with lightingShader
+    // Render dos hangars
     auto renderHangar = [&](glm::vec3 translation, float rotation) {
         model = glm::translate(glm::mat4(1.0f), translation);
         model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -97,7 +97,7 @@ void renderScene() {
     renderHangar(hangarPos, 0.0f);
     renderHangar(enemyHangarPos, 180.0f);
 
-    // Render fighter with lightingShader
+    // Render da nave do jogador
     model = glm::translate(glm::mat4(1.0f), fighter_player.position);
     model = glm::rotate(model, glm::radians(fighter_player.directionX + 270), glm::vec3(0.0f, -1.0f, 0.0f));
     model = glm::rotate(model, glm::radians(fighter_player.directionY), glm::vec3(-1.0f, 0.0f, 0.0f));
@@ -113,7 +113,7 @@ void renderScene() {
         glDrawArrays(GL_TRIANGLES, 0, tieModel.vertices.size());
     }
 
-    // also draw the lamp object
+    // Render das lampadas dos hangars
     lightingCubeShader->use();
     lightingCubeShader->setMat4("projection", projection);
     lightingCubeShader->setMat4("view", view);
@@ -133,10 +133,10 @@ void renderScene() {
         glDrawArrays(GL_TRIANGLES, 0, 36);
     }
 
-    // Then render skybox
-    glDepthFunc(GL_LEQUAL);  // Change depth function
+    // Render do skybox
+    glDepthFunc(GL_LEQUAL); 
     skyboxShader->use();
-    view = glm::mat4(glm::mat3(camera.GetViewMatrix())); // Remove translation
+    view = glm::mat4(glm::mat3(camera.GetViewMatrix())); 
     skyboxShader->setMat4("view", view);
     skyboxShader->setMat4("projection", projection);
 
@@ -146,9 +146,9 @@ void renderScene() {
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
     
-    glDepthFunc(GL_LESS); // Restore depth function
+    glDepthFunc(GL_LESS); 
 
-    // Render explosions
+    // Render das explosões
     explosionShader->use();
     explosionShader->setMat4("view", camera.GetViewMatrix());
     explosionShader->setMat4("projection", glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f));
@@ -202,7 +202,6 @@ void renderScene() {
 void renderTextures(Model *Tmodel){
     glBindVertexArray(Tmodel->VAO);
     if (!Tmodel->materials.empty()) {
-        // Bind vertex array before material loop
         bool anyMaterialApplied = false;
         for (const auto& material : Tmodel->materials){
             glActiveTexture(GL_TEXTURE0);
@@ -255,7 +254,6 @@ void renderTextures(Model *Tmodel){
 
     glDrawArrays(GL_TRIANGLES, 0, Tmodel->vertices.size());
 
-    // Unbind textures after rendering
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glActiveTexture(GL_TEXTURE1);
@@ -369,24 +367,21 @@ void lightsActivate(Shader *ls, glm::mat4 view, glm::mat4 projection){
     }
 }
 
+/**
+ * @brief Esta função renderiza uma string numa dada posição da tela, com uma cor e fonte desejada.
+ */
 void RenderText(std::string text, float x, float y, float scale, glm::vec3 color, bool useFirstFont = true)
 {
     textShader->use();
     glm::mat4 projection;
-    if(gameState == 5){
-        projection = glm::ortho(0.0f, static_cast<float>(SCR_WIDTH), 0.0f, static_cast<float>(SCR_HEIGHT));
-    } else {
-        projection = glm::ortho(0.0f, static_cast<float>(SCR_WIDTH), 0.0f, static_cast<float>(SCR_HEIGHT));
-    }
+    projection = glm::ortho(0.0f, static_cast<float>(SCR_WIDTH), 0.0f, static_cast<float>(SCR_HEIGHT));
     textShader->setMat4("projection", projection);
     glUniform3f(glGetUniformLocation(textShader->ID, "textColor"), color.x, color.y, color.z);
     glActiveTexture(GL_TEXTURE0); 
     glBindVertexArray(VAOt);
 
-    // Choose the font to use
     std::map<GLchar, Character>& fontCharacters = useFirstFont ? Characters : Characters2; // Modify this line to use the second font's Characters map
 
-    // iterate through all characters
     std::string::const_iterator c;
     for (c = text.begin(); c != text.end(); c++) 
     {
@@ -397,7 +392,7 @@ void RenderText(std::string text, float x, float y, float scale, glm::vec3 color
 
         float w = ch.Size.x * scale;
         float h = ch.Size.y * scale;
-        // update VBO for each character
+
         float vertices[6][4] = {
             { xpos,     ypos + h,   0.0f, 0.0f },            
             { xpos,     ypos,       0.0f, 1.0f },
@@ -407,23 +402,20 @@ void RenderText(std::string text, float x, float y, float scale, glm::vec3 color
             { xpos + w, ypos,       1.0f, 1.0f },
             { xpos + w, ypos + h,   1.0f, 0.0f }           
         };
-        // render glyph texture over quad
+
         glBindTexture(GL_TEXTURE_2D, ch.TextureID);
-        // printf("%d\n", ch.TextureID);
-        // update content of VBO memory
+
         glBindBuffer(GL_ARRAY_BUFFER, VBOt);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices); // be sure to use glBufferSubData and not glBufferData
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices); 
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
-        // render quad
+
         glDrawArrays(GL_TRIANGLES, 0, 6);
-        // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
-        x += (ch.Advance >> 6) * scale; // bitshift by 6 to get value in pixels (2^6 = 64 (divide amount of 1/64th pixels by 64 to get amount of pixels))
+        x += (ch.Advance >> 6) * scale; 
     }
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
 }
-
 
 void renderProjectiles(Shader& shader) {
     shader.use();
@@ -454,6 +446,10 @@ void renderProjectiles(Shader& shader) {
 
 }
 
+/**
+ * @brief Esta função renderiza o texto apresentado na introdução do jogo, 
+ * indo alterando a posição de cada string dando um efeito de scroll
+ */
 void renderIntro(){
     // Clear the screen
     glClearColor(0.01f, 0.0f, 0.02f, 1.0f);
