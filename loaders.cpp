@@ -229,7 +229,7 @@ unsigned int loadTexture(const char* path) {
 }
 
 /**
- * @brief Função utilizada para carregar texto a partir de um ficheiro de fonte TrueType.
+ * @brief Função utilizada para carregar as duas fontes de texto a partir de um ficheiro de fonte TrueType.
  * 
  * @return int - Retorna 0 se foi bem sucedido, ou -1 se ocorreu erro ao carregar o ficheiro.
  */
@@ -237,14 +237,12 @@ int loadText(){
     // FreeType
     // --------
     FT_Library ft;
-    // All functions return a value different than 0 whenever an error occurred
     if (FT_Init_FreeType(&ft))
     {
         std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
         return -1;
     }
 
-    // find paths to fonts
     std::string font_name1 = "fonts/News Gothic Bold.ttf";
     std::string font_name2 = "fonts/Starjedi.ttf";
     if (font_name1.empty() || font_name2.empty())
@@ -253,29 +251,24 @@ int loadText(){
         return -1;
     }
 
-    // Load first font
+    // Carregamento da primeira fonte
     FT_Face face1;
     if (FT_New_Face(ft, font_name1.c_str(), 0, &face1)) {
         std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
         return -1;
     }
     else {
-        // set size to load glyphs as
         FT_Set_Pixel_Sizes(face1, 0, 48);
 
-        // disable byte-alignment restriction
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-        // load first 128 characters of ASCII set
         for (unsigned char c = 0; c < 128; c++)
         {
-            // Load character glyph 
             if (FT_Load_Char(face1, c, FT_LOAD_RENDER))
             {
                 std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
                 continue;
             }
-            // generate texture
             unsigned int texture;
             glGenTextures(1, &texture);
             glBindTexture(GL_TEXTURE_2D, texture);
@@ -290,12 +283,10 @@ int loadText(){
                 GL_UNSIGNED_BYTE,
                 face1->glyph->bitmap.buffer
             );
-            // set texture options
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            // now store character for later use
             Character character = {
                 texture,
                 glm::ivec2(face1->glyph->bitmap.width, face1->glyph->bitmap.rows),
@@ -308,29 +299,24 @@ int loadText(){
     }
     FT_Done_Face(face1);
 
-    // Load second font
+    // Carregamento da segunda fonte
     FT_Face face2;
     if (FT_New_Face(ft, font_name2.c_str(), 0, &face2)) {
         std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
         return -1;
     }
     else {
-        // set size to load glyphs as
         FT_Set_Pixel_Sizes(face2, 0, 72);
 
-        // disable byte-alignment restriction
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-        // load first 128 characters of ASCII set
         for (unsigned char c = 0; c < 128; c++)
         {
-            // Load character glyph 
             if (FT_Load_Char(face2, c, FT_LOAD_RENDER))
             {
                 std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
                 continue;
             }
-            // generate texture
             unsigned int texture;
             glGenTextures(1, &texture);
             glBindTexture(GL_TEXTURE_2D, texture);
@@ -345,12 +331,10 @@ int loadText(){
                 GL_UNSIGNED_BYTE,
                 face2->glyph->bitmap.buffer
             );
-            // set texture options
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            // now store character for later use
             Character character = {
                 texture,
                 glm::ivec2(face2->glyph->bitmap.width, face2->glyph->bitmap.rows),
@@ -365,7 +349,7 @@ int loadText(){
 
     FT_Done_FreeType(ft);
     
-    // configure VAO/VBO for texture quads
+    // configurar os VAO e VBO para as texturas
     // -----------------------------------
     glGenVertexArrays(1, &VAOt);
     glGenBuffers(1, &VBOt);

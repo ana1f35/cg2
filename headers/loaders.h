@@ -12,7 +12,6 @@ extern std::map<GLchar, Character> Characters2;
 int loadModel(const std::string& filePath, Model& model, bool centerModel);
 void loadMaterials(const std::string& mtlFilePath, std::vector<MaterialInfo>& materials);
 unsigned int loadTexture(const char* path);
-void loadLuz();
 int loadText();
 unsigned int loadCubemap(std::vector<std::string> faces);
 

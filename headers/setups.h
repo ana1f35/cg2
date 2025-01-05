@@ -12,5 +12,6 @@ extern unsigned int boundingBoxVAO, boundingBoxVBO, boundingBoxEBO;
 void setupSkybox();
 void setupSquare();
 void setupBoundingBox();
+void loadLuz();
 
 #endif
