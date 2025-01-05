@@ -241,7 +241,7 @@ int main() {
         // Processar entradas do teclado
         processInput();
 
-        // Caso o jogo esteja no modo inicial deverá ser renderizada apenas a tela de introdução
+        // Caso o jogo esteja no estado de introdução deverá ser renderizada apenas a tela de introdução
         if(gameState == 5){
             renderIntro();
             glfwSwapBuffers(window);
@@ -251,27 +251,29 @@ int main() {
 
         // Em qualquer outro estado do jogo deverá ser renderizada a cena do jogo
         renderScene();
-
         
+        // Se o jogo está no estado inicial
         if(gameState == 0){
             textoInicio();
             checkStart();
         }
         
-        // Além disse deverão ser movidos os inimigos
+        // Se o jogo está no estado de decorrer
         else if(gameState == 1){
             textoDurante();
             moverInimigos();
 
-            // o jogo termina se o player ficou sem vida, ou se já chegou ao hangar inimigo
+            // Verificar se o jogo terminou
+            // o jogo termina se o jogador ficou sem vida, ou se já alcançou o hangar inimigo
             if(fighter_player.position.x >= enemyHangarPos.x - 100)
                 gameState = 4;
             else if (fighter_player.hp == 0)
                 gameState = 4;
 
-            // Spwan de inimigos -- deve parar se o player estiver perto do final
+            // A cada 10 segundos gerar novos inimigos na cena saídos do hangar inimigo
             static float lastSpawnTime = glfwGetTime();
             float currentSpawnTime = glfwGetTime();
+            // só deve acontecer caso o jogador ainda esteja afastado do hangar inimigo
             if (currentSpawnTime - lastSpawnTime >= 10.0f && fighter_player.position.x < enemyHangarPos.x - 500) {
                 enemies.push_back(Fighter(enemyHangarPos + glm::vec3(0.0f, 5.0f, -100.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
                 enemies.push_back(Fighter(enemyHangarPos + glm::vec3(-100.0f, 5.0f, 0.0f), -fighter_player.front, 0.0f, 0.0f, 0.0f, 5.0f, 1, 10.0f));
@@ -280,6 +282,7 @@ int main() {
                 lastSpawnTime = currentSpawnTime;
             }
 
+            // Para o funcionamento dos tiros
             static float lastTime = glfwGetTime();
             float currentTime = glfwGetTime();
             float deltaTime = currentTime - lastTime;
@@ -292,16 +295,16 @@ int main() {
 
             renderProjectiles(*hitBoxShader);
         }
-        // Em pausa (controlos)
+        // Se o jogo está no estado de pausa
         else if(gameState == 2){
             textoPausa();
         }
-        // Terminado
+        // Se o jogo está no estado final
         else if(gameState == 4){
             textoFinal();
         }
         
-        // Swap buffers and poll IO events
+        // Trocar buffers e verificar eventos de I/O
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
