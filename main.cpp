@@ -1080,6 +1080,7 @@ void shootProjectile(const Fighter& fighter, int origin) {
     projectiles.emplace_back(projectilePosition, direction, 20.0f, projRadius, origin); // Velocidade ajustada para 20.0f
 }
 
+
 void updateProjectiles(float deltaTime) {
     for (auto& proj : projectiles) {
         proj.position += proj.direction * proj.speed * deltaTime * 0.5f;
