@@ -3,26 +3,30 @@
 /**
  * @brief Esta função verifica inputs de teclas específicas e atualiza a posição e rotação do fighter com base no input. 
  * Também lida com o evento de fecho da janela quando a tecla ESC é pressionada.
- * A função também verifica se o fighter está estacionado, caso esteja, nenhum movimento ou rotação é processado.
  * 
  * Correspondência das teclas:
- * - ESC: Fecha a janela.
- * - W: Move o fighter para frente.
- * - S: Move o fighter para trás.
- * - A: Inclina o fighter para a esquerda.
- * - D: Inclina o fighter para a direita.
+ * ESC: Fecha a janela.
+ * W: Incrementa a velocidade. Incrementa o valor de fighter_player.movementSpeed.
+ * S: Decrementa a velocidade. Decrementa o valor de fighter_player.movementSpeed.
+ * Q: Ataca.
+ * V: Alteração da perspetiva de câmera.
+ * C: Pausa o jogo e mostra os controlos do jogo.
  */
 void processInput()
 {
+    // Ao clicar no ESC fecha a janela
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
+    // caso esteja a ser passada a introdução é possível saltar clicando em E
     if(gameState == 5 && glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
         gameState = 0;
 
+    // caso o jogo não tenha iniciado, esteja em pausa ou no estado de introdução não devem ser lidos mais inputs
     if(gameState == 0 || gameState == 3 || gameState == 5)
         return;
 
+    // caso tenha terminado o jogo deverá ser possível recomeçar clicando no SPACE
     if(gameState == 4){
         if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
             restartGame();
@@ -31,6 +35,7 @@ void processInput()
         return;
     }
 
+    // Durante o jogo, ao clicar no C deverá pausar e mostrar os controlos do jogo, ou o contrário.
     static bool cKeyPressed = false;
     if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
         if (!cKeyPressed) {
@@ -47,7 +52,7 @@ void processInput()
     if(gameState == 2)
         return;
 
-    // Toggle camera modes (free camera vs. fixed behind the player)
+    // Altera entre os 3 modos de câmera disponíveis
     static bool vKeyPressed = false;
     if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
         if (!vKeyPressed) {
@@ -63,6 +68,7 @@ void processInput()
         vKeyPressed = false;
     }
 
+    // Ao clicar Q será reproduzido um som e chamada a função que permite ao jogador atacar uma nave inimiga
     static bool fireKeyPressed = false;
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
         if (!fireKeyPressed) {
@@ -74,6 +80,7 @@ void processInput()
             fireKeyPressed = false;
         }
 
+    // Estando no modo de camera de visão superior, a nave deverá ser controlado pelas teclas A e D movendo para a esquerda e direita
     if(cameraMode == 2){
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
             fighter_player.position.z -= 5.0;
@@ -88,7 +95,7 @@ void processInput()
 
     static float lastPressTime = 0.0f;
 
-    // Move forward with smooth acceleration
+    // Aumenta a velocidade da nave e reproduz um som
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
         if (fighter_player.movementSpeed < 100.0f) {
             fighter_player.movementSpeed += 50.0f;
@@ -96,22 +103,22 @@ void processInput()
         }
         lastPressTime = glfwGetTime();
     }
-    // Move backward with smooth deceleration
+    // Diminui a velocidade
     else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
         if (fighter_player.movementSpeed > 30.0f) {
             fighter_player.movementSpeed -= 1.0f;
         } else {
-            fighter_player.movementSpeed = 30.0f; // Minimum speed
+            fighter_player.movementSpeed = 30.0f; // Velocidade minima
         }
     }
     else {
-        // Gradual deceleration
+        // A velocidade deve ir diminuindo gradualmente
         float currentTime = glfwGetTime();
-        if (currentTime - lastPressTime > 1.0f) { // 1 second delay before deceleration
+        if (currentTime - lastPressTime > 1.0f) {
             if (fighter_player.movementSpeed > 30.0f) {
-                fighter_player.movementSpeed -= 5.0f; // Decelerate more gradually
+                fighter_player.movementSpeed -= 5.0f; 
             } else {
-                fighter_player.movementSpeed = 30.0f; // Minimum speed
+                fighter_player.movementSpeed = 30.0f;
             }
         }
     }
@@ -142,19 +149,20 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     xoffset *= sensitivity;
     yoffset *= sensitivity;
 
-    // Update the camera's direction based on mouse input
+    // Atualiza a direção da camera com base no input do rato
     camera.ProcessMouseMovement(xoffset, yoffset);
+    // Limita a direção dentro deste intervalo de ângulos
     if (camera.Yaw > 50.0f)
         camera.Yaw = 50.0f;
     if (camera.Yaw < -50.0f)
         camera.Yaw = -50.0f;
 
-    // Update the direction of the fighter_player based on the camera
+    // Atualiza a direção do jogador com base na camera
     fighter_player.front = camera.Front;
     fighter_player.directionX = camera.Yaw;
     fighter_player.directionY = camera.Pitch;
 
-    // Smoothly rotate the fighter based on the camera's yaw
+    // Suavemente vai inclinando a nave quando esta muda de direção
     const float rotationSpeed = 5.0f;
     fighter_player.rotation -= xoffset * rotationSpeed * 0.05;
     if (fighter_player.rotation > 45.0f) {
@@ -163,7 +171,6 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
         fighter_player.rotation = -45.0f;
     }
 
-    // Re-center the cursor in the middle of the window
     glfwSetCursorPos(window, width / 2.0, height / 2.0);
 }
 
