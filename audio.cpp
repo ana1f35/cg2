@@ -1,10 +1,7 @@
-#define DR_WAV_IMPLEMENTATION
-#include "include/dr_wav.h"
-#include <AL/al.h>
-#include <AL/alc.h>
+#include "include/audio.h"
 #include <iostream>
 #include <vector>
-#include <thread>
+#include "include/dr_wav.h"
 
 bool loadAudio(const std::string& fileName, ALuint& buffer) {
     drwav wav;

@@ -1,116 +1,37 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
-#include <stdio.h>
-#include <stdlib.h>
-#include <iostream>
-#include <map>
-#include <vector>
-#include <algorithm>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include "include/shader_m.h"
-#include "include/camera.h"
-#include "include/tiny_obj_loader.h"
-#include "include/stb_image.h"
-#include "include/ft2build.h"
+
+#include "include/common.h"
+#include "include/loaders.h"
+#include "include/structs.h"
+#include "include/setups.h"
+#include "include/input.h"
+#include "include/audio.h"
+
 #include FT_FREETYPE_H
-#include "audio.cpp"
-
-struct MaterialInfo {
-    std::string name;
-    std::string diffuse_texname;
-    std::string specular_texname;
-    std::string normal_texname;
-    unsigned int diffuse_texid;
-    unsigned int specular_texid;
-    unsigned int normal_texid;
-};
-
-struct Model {
-    std::string name;
-    std::vector<glm::vec3> vertices;
-    std::vector<glm::vec3> normals;
-    std::vector<glm::vec2> texCoords;
-    unsigned int VAO, VBO, NBO, TBO;
-    std::vector<MaterialInfo> materials;
-};
-
-// Fighter
-struct Fighter {
-    glm::vec3 position;
-    glm::vec3 front;
-    float rotation;
-    float directionX;
-    float directionY;
-    float movementSpeed;
-    int hp;
-    float collisionRadius;
-        
-    Fighter(glm::vec3 pos, glm::vec3 frnt, float rotation, float directionX, float directionY, float speed, int hp, float radius) 
-        : position(pos), front(frnt), rotation(rotation), directionX(directionX), directionY(directionY), movementSpeed(speed), hp(hp), collisionRadius(radius) {}
-};
-
-struct Projectile {
-    glm::vec3 position;
-    glm::vec3 direction;
-    float speed;
-    float collisionRadius;
-    int origin; // 0 = player, 1 = enemy
-
-    Projectile(glm::vec3 pos, glm::vec3 dir, float spd, float radius, int origin)
-        : position(pos), direction(glm::normalize(dir)), speed(spd), collisionRadius(radius), origin(origin) {}
-};
-
-// Holds all state information relevant to a character as loaded using FreeType
-struct Character {
-    unsigned int TextureID; // ID handle of the glyph texture
-    glm::ivec2   Size;      // Size of glyph
-    glm::ivec2   Bearing;   // Offset from baseline to left/top of glyph
-    unsigned int Advance;   // Horizontal offset to advance to next glyph
-};
-
-struct Explosion {
-    glm::vec3 position;
-    float startTime;
-};
 
 // Declaração das funções
-int loadModel(const std::string& filePath, Model& model, bool centerModel);
-void loadMaterials(const std::string& mtlFilePath, std::vector<MaterialInfo>& materials);
-unsigned int loadTexture(const char* path);
 void renderTextures(Model *model);
 void lightsActivate(Shader *ls, glm::mat4 view, glm::mat4 projection);
 unsigned int loadCubemap(std::vector<std::string> faces);
-void setupSkybox();
-void loadLuz();
-int loadText();
 void renderScene();
 bool checkStart();
 void animacaoSaida();
 void moverInimigos();
 void animacaoInimigos();
-void mouse_callback(GLFWwindow* window, double xpos, double ypos);
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-void processInput();
 void RenderText(std::string text, float x, float y, float scale, glm::vec3 color, bool useFirstFont);
 bool isColliding(glm::vec3 projPosition, float projRadius, glm::vec3 enemyPosition, float enemyRadius);
 void checkCollisions();
 void renderBoundingBox(glm::vec3 position, float radius, float scaleFactor);
 void renderProjectiles(Shader& shader);
-// void shootProjectile(const Fighter& fighter);
 void shootProjectile(const Fighter& fighter, int origin);
 void updateProjectiles(float deltaTime);
 void shootEnemyProjectiles(float deltaTime);
-void setupBoundingBox();
 void createShot(float radius, float height, int segments, unsigned int& VAO, unsigned int& VBO);
 Fighter* findClosestEnemy(const glm::vec3& playerPosition);
 void desenhaAlvo();
 void restartGame();
 void renderIntro();
-void setupSquare();
 
 // Variáveis globais
 unsigned int SCR_WIDTH = 800;
@@ -497,478 +418,6 @@ unsigned int loadCubemap(std::vector<std::string> faces) {
     return textureID;
 }
 
-// Função que configura o skybox
-void setupSkybox() {
-    float skyboxVertices[] = {
-        // positions          
-        -700.0f,  700.0f, -700.0f,
-        -700.0f, -700.0f, -700.0f,
-         700.0f, -700.0f, -700.0f,
-         700.0f, -700.0f, -700.0f,
-         700.0f,  700.0f, -700.0f,
-        -700.0f,  700.0f, -700.0f,
-
-        -700.0f, -700.0f,  700.0f,
-        -700.0f, -700.0f, -700.0f,
-        -700.0f,  700.0f, -700.0f,
-        -700.0f,  700.0f, -700.0f,
-        -700.0f,  700.0f,  700.0f,
-        -700.0f, -700.0f,  700.0f,
-
-         700.0f, -700.0f, -700.0f,
-         700.0f, -700.0f,  700.0f,
-         700.0f,  700.0f,  700.0f,
-         700.0f,  700.0f,  700.0f,
-         700.0f,  700.0f, -700.0f,
-         700.0f, -700.0f, -700.0f,
-
-        -700.0f, -700.0f,  700.0f,
-        -700.0f,  700.0f,  700.0f,
-         700.0f,  700.0f,  700.0f,
-         700.0f,  700.0f,  700.0f,
-         700.0f, -700.0f,  700.0f,
-        -700.0f, -700.0f,  700.0f,
-
-        -700.0f,  700.0f, -700.0f,
-         700.0f,  700.0f, -700.0f,
-         700.0f,  700.0f,  700.0f,
-         700.0f,  700.0f,  700.0f,
-        -700.0f,  700.0f,  700.0f,
-        -700.0f,  700.0f, -700.0f,
-
-        -700.0f, -700.0f, -700.0f,
-        -700.0f, -700.0f,  700.0f,
-         700.0f, -700.0f, -700.0f,
-         700.0f, -700.0f, -700.0f,
-        -700.0f, -700.0f,  700.0f,
-         700.0f, -700.0f,  700.0f
-    };
-
-    glGenVertexArrays(1, &skyboxVAO);
-    glGenBuffers(1, &skyboxVBO);
-    glBindVertexArray(skyboxVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-}
-
-/**
- * @brief Função utilizada para carrega um modelo 3D a partir de um ficheiro .obj usando a biblioteca TinyObjLoader 
- * para a leitura do ficheiro. São extraidos os vertices e as normais, e caso necessário centraliza o modelo.
- * Depois configura os objetos de array e buffer de vértices do OpenGL.
- * 
- * @param filePath Caminho para o ficheiro .obj a ser carregado.
- * @param vertices Referência para o vetor onde os dados dos vértices serão guardados.
- * @param normals Referência para o vetor onde os dados das normais serão guardados.
- * @param VAO Referência para o VAO a ser gerado.
- * @param VBO Referência para o VBO a ser gerado.
- * @param NBO Referência para o NBO a ser gerado.
- * @param centerModel Bool indicando se o modelo deve ou não ser centralizado.
- * @return int - Retorna 0 se foi bem sucedido, ou -1 se ocorreu erro ao carregar o ficheiro.
- */
-int loadModel(const std::string& filePath, Model& model, bool centerModel) {
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> tinyMaterials;
-    std::string warn, err;
-    std::string mtlBaseDir = filePath.substr(0, filePath.find_last_of('/')) + "/";
-    model.name = (filePath.substr(filePath.find_last_of('/') + 1)).substr(0, (filePath.substr(filePath.find_last_of('/') + 1)).find_last_of('.'));
-
-    // Load the .obj file using TinyObjLoader
-    if (!tinyobj::LoadObj(&attrib, &shapes, &tinyMaterials, &err, filePath.c_str(), mtlBaseDir.c_str())) {
-        std::cout << "Failed to load OBJ file: " << err << std::endl;
-        return -1;
-    }
-
-    if (!warn.empty()) {
-        std::cout << "Warning: " << warn << std::endl;
-    }
-
-    glm::vec3 center(0.0f);
-    int totalVertices = 0;
-
-    // Extract vertices, normals, and texture coordinates
-    for (const auto& shape : shapes) {
-        for (const auto& index : shape.mesh.indices) {
-            glm::vec3 vertex(
-                attrib.vertices[3 * index.vertex_index + 0],
-                attrib.vertices[3 * index.vertex_index + 1],
-                attrib.vertices[3 * index.vertex_index + 2]
-            );
-            model.vertices.push_back(vertex);
-            center += vertex;
-            totalVertices++;
-            if (!attrib.normals.empty()) {
-                glm::vec3 normal(
-                    attrib.normals[3 * index.normal_index + 0],
-                    attrib.normals[3 * index.normal_index + 1],
-                    attrib.normals[3 * index.normal_index + 2]
-                );
-                model.normals.push_back(normal);
-            }
-            if (!attrib.texcoords.empty()) {
-                glm::vec2 texCoord(
-                    attrib.texcoords[2 * index.texcoord_index + 0],
-                    attrib.texcoords[2 * index.texcoord_index + 1]
-                );
-                model.texCoords.push_back(texCoord);
-            }
-        }
-    }
-
-    if (centerModel) {
-        center /= totalVertices;
-        for (auto& vertex : model.vertices) {
-            vertex -= center;
-        }
-    }
-
-    glGenVertexArrays(1, &model.VAO);
-    glGenBuffers(1, &model.VBO);
-    glGenBuffers(1, &model.NBO);
-    glGenBuffers(1, &model.TBO);
-    glBindVertexArray(model.VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, model.VBO);
-    glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(glm::vec3), &model.vertices[0], GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    glBindBuffer(GL_ARRAY_BUFFER, model.NBO);
-    glBufferData(GL_ARRAY_BUFFER, model.normals.size() * sizeof(glm::vec3), &model.normals[0], GL_STATIC_DRAW);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glEnableVertexAttribArray(1);
-
-    glBindBuffer(GL_ARRAY_BUFFER, model.TBO);
-    glBufferData(GL_ARRAY_BUFFER, model.texCoords.size() * sizeof(glm::vec2), &model.texCoords[0], GL_STATIC_DRAW);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
-    glEnableVertexAttribArray(2);
-
-    // Load materials if available
-    if (!tinyMaterials.empty()) {
-        std::string mtlFilePath = mtlBaseDir + model.name + ".mtl";
-        std::cout << "Loading materials from: " << mtlFilePath << std::endl;
-        loadMaterials(mtlFilePath, model.materials);
-    } else {
-        std::cout << "No materials found in the OBJ file." << std::endl;
-    }
-
-    return 0;
-}
-
-// Function to load materials and textures from MTL file
-void loadMaterials(const std::string& mtlFilePath, std::vector<MaterialInfo>& materials) {
-    std::ifstream mtlFile(mtlFilePath);
-    if (!mtlFile) {
-        std::cerr << "Failed to open MTL file: " << mtlFilePath << std::endl;
-        return;
-    }
-
-    // Get the directory path of the MTL file
-    std::string directory = mtlFilePath.substr(0, mtlFilePath.find_last_of('/'));
-
-    std::map<std::string, int> material_map;
-    std::vector<tinyobj::material_t> tinyMaterials;
-    std::string warning;
-    tinyobj::LoadMtl(&material_map, &tinyMaterials, &mtlFile, &warning);
-
-    if (!warning.empty()) {
-        std::cerr << "Warning: " << warning << std::endl;
-    }
-
-    for (const auto& tinyMaterial : tinyMaterials) {
-        MaterialInfo material;
-        material.name = tinyMaterial.name;
-        material.diffuse_texname = tinyMaterial.diffuse_texname;
-        material.specular_texname = tinyMaterial.specular_texname;
-        material.normal_texname = tinyMaterial.bump_texname; // Use bump_texname for normal map
-
-        // Load textures if they exist
-        if (!material.diffuse_texname.empty()) {
-            std::string texPath = directory + "/" + material.diffuse_texname;
-            material.diffuse_texid = loadTexture(texPath.c_str());
-            std::cout << "Loaded diffuse texture: " << texPath << std::endl;
-        }
-        if (!material.specular_texname.empty()) {
-            std::string texPath = directory + "/" + material.specular_texname;
-            material.specular_texid = loadTexture(texPath.c_str());
-            std::cout << "Loaded specular texture: " << texPath << std::endl;
-        }
-        if (!material.normal_texname.empty()) {
-            std::string texPath = directory + "/" + material.normal_texname;
-            material.normal_texid = loadTexture(texPath.c_str());
-            std::cout << "Loaded normal texture: " << texPath << std::endl;
-        }
-
-        // Load additional textures
-        if (!tinyMaterial.roughness_texname.empty()) {
-            std::string texPath = directory + "/" + tinyMaterial.roughness_texname;
-            material.specular_texid = loadTexture(texPath.c_str());
-            std::cout << "Loaded roughness texture: " << texPath << std::endl;
-        }
-        if (!tinyMaterial.metallic_texname.empty()) {
-            std::string texPath = directory + "/" + tinyMaterial.metallic_texname;
-            material.specular_texid = loadTexture(texPath.c_str());
-            std::cout << "Loaded metallic texture: " << texPath << std::endl;
-        }
-        if (!tinyMaterial.bump_texname.empty()) {
-            std::string texPath = directory + "/" + tinyMaterial.bump_texname;
-            material.normal_texid = loadTexture(texPath.c_str());
-            std::cout << "Loaded bump texture: " << texPath << std::endl;
-        }
-
-        materials.push_back(material);
-        
-        std::cout << "Material: " << material.name << std::endl;
-        std::cout << "  Diffuse Texture: " << material.diffuse_texname << std::endl;
-        std::cout << "  Specular Texture: " << material.specular_texname << std::endl;
-        std::cout << "  Normal Texture: " << material.normal_texname << std::endl;
-    }
-}
-
-unsigned int loadTexture(const char* path) {
-    // Add this before loading texture
-    stbi_set_flip_vertically_on_load(true);  // OpenGL expects texture coordinates to start from bottom-left
-
-    unsigned int textureID;
-    glGenTextures(1, &textureID);
-
-    int width, height, nrComponents;
-    unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
-    if (data) {
-        GLenum format;
-        if (nrComponents == 1)
-            format = GL_RED;
-        else if (nrComponents == 3)
-            format = GL_RGB;
-        else if (nrComponents == 4)
-            format = GL_RGBA;
-
-        glBindTexture(GL_TEXTURE_2D, textureID);
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-
-        // Set texture parameters
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        stbi_image_free(data);
-    }
-    else {
-        std::cout << "Texture failed to load at path: " << path << std::endl;
-        stbi_image_free(data);
-    }
-
-    return textureID;
-}
-
-void loadLuz(){
-    float vertices[] = {
-        -1.5f, -0.1f, -1.5f, 
-         1.5f, -0.1f, -1.5f,  
-         1.5f,  0.1f, -1.5f,  
-         1.5f,  0.1f, -1.5f,  
-        -1.5f,  0.1f, -1.5f, 
-        -1.5f, -0.1f, -1.5f, 
-
-        -1.5f, -0.1f,  1.5f, 
-         1.5f, -0.1f,  1.5f,  
-         1.5f,  0.1f,  1.5f,  
-         1.5f,  0.1f,  1.5f,  
-        -1.5f,  0.1f,  1.5f, 
-        -1.5f, -0.1f,  1.5f, 
-
-        -1.5f,  0.1f,  1.5f, 
-        -1.5f,  0.1f, -1.5f, 
-        -1.5f, -0.1f, -1.5f, 
-        -1.5f, -0.1f, -1.5f, 
-        -1.5f, -0.1f,  1.5f, 
-        -1.5f,  0.1f,  1.5f, 
-
-         1.5f,  0.1f,  1.5f,  
-         1.5f,  0.1f, -1.5f,  
-         1.5f, -0.1f, -1.5f,  
-         1.5f, -0.1f, -1.5f,  
-         1.5f, -0.1f,  1.5f,  
-         1.5f,  0.1f,  1.5f,  
-
-        -1.5f, -0.1f, -1.5f, 
-         1.5f, -0.1f, -1.5f,  
-         1.5f, -0.1f,  1.5f,  
-         1.5f, -0.1f,  1.5f,  
-        -1.5f, -0.1f,  1.5f, 
-        -1.5f, -0.1f, -1.5f, 
-
-        -1.5f,  0.1f, -1.5f, 
-         1.5f,  0.1f, -1.5f,  
-         1.5f,  0.1f,  1.5f,  
-         1.5f,  0.1f,  1.5f,  
-        -1.5f,  0.1f,  1.5f, 
-        -1.5f,  0.1f, -1.5f, 
-    };
-
-    // Remove the re-declaration of lightCubeVAO
-    glGenVertexArrays(1, &lightCubeVAO);
-    glBindVertexArray(lightCubeVAO);
-
-    glGenBuffers(1, &lightVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, lightVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-}
-
-int loadText(){
-    // FreeType
-    // --------
-    FT_Library ft;
-    // All functions return a value different than 0 whenever an error occurred
-    if (FT_Init_FreeType(&ft))
-    {
-        std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
-        return -1;
-    }
-
-    // find paths to fonts
-    std::string font_name1 = "fonts/News Gothic Bold.ttf";
-    std::string font_name2 = "fonts/Starjedi.ttf";
-    if (font_name1.empty() || font_name2.empty())
-    {
-        std::cout << "ERROR::FREETYPE: Failed to load font_name" << std::endl;
-        return -1;
-    }
-
-    // Load first font
-    FT_Face face1;
-    if (FT_New_Face(ft, font_name1.c_str(), 0, &face1)) {
-        std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
-        return -1;
-    }
-    else {
-        // set size to load glyphs as
-        FT_Set_Pixel_Sizes(face1, 0, 48);
-
-        // disable byte-alignment restriction
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-        // load first 128 characters of ASCII set
-        for (unsigned char c = 0; c < 128; c++)
-        {
-            // Load character glyph 
-            if (FT_Load_Char(face1, c, FT_LOAD_RENDER))
-            {
-                std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
-                continue;
-            }
-            // generate texture
-            unsigned int texture;
-            glGenTextures(1, &texture);
-            glBindTexture(GL_TEXTURE_2D, texture);
-            glTexImage2D(
-                GL_TEXTURE_2D,
-                0,
-                GL_RED,
-                face1->glyph->bitmap.width,
-                face1->glyph->bitmap.rows,
-                0,
-                GL_RED,
-                GL_UNSIGNED_BYTE,
-                face1->glyph->bitmap.buffer
-            );
-            // set texture options
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            // now store character for later use
-            Character character = {
-                texture,
-                glm::ivec2(face1->glyph->bitmap.width, face1->glyph->bitmap.rows),
-                glm::ivec2(face1->glyph->bitmap_left, face1->glyph->bitmap_top),
-                static_cast<unsigned int>(face1->glyph->advance.x)
-            };
-            Characters.insert(std::pair<char, Character>(c, character));
-        }
-        glBindTexture(GL_TEXTURE_2D, 0);
-    }
-    FT_Done_Face(face1);
-
-    // Load second font
-    FT_Face face2;
-    if (FT_New_Face(ft, font_name2.c_str(), 0, &face2)) {
-        std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
-        return -1;
-    }
-    else {
-        // set size to load glyphs as
-        FT_Set_Pixel_Sizes(face2, 0, 72);
-
-        // disable byte-alignment restriction
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-        // load first 128 characters of ASCII set
-        for (unsigned char c = 0; c < 128; c++)
-        {
-            // Load character glyph 
-            if (FT_Load_Char(face2, c, FT_LOAD_RENDER))
-            {
-                std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
-                continue;
-            }
-            // generate texture
-            unsigned int texture;
-            glGenTextures(1, &texture);
-            glBindTexture(GL_TEXTURE_2D, texture);
-            glTexImage2D(
-                GL_TEXTURE_2D,
-                0,
-                GL_RED,
-                face2->glyph->bitmap.width,
-                face2->glyph->bitmap.rows,
-                0,
-                GL_RED,
-                GL_UNSIGNED_BYTE,
-                face2->glyph->bitmap.buffer
-            );
-            // set texture options
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            // now store character for later use
-            Character character = {
-                texture,
-                glm::ivec2(face2->glyph->bitmap.width, face2->glyph->bitmap.rows),
-                glm::ivec2(face2->glyph->bitmap_left, face2->glyph->bitmap_top),
-                static_cast<unsigned int>(face2->glyph->advance.x)
-            };
-            Characters2.insert(std::pair<char, Character>(c, character));
-        }
-        glBindTexture(GL_TEXTURE_2D, 0);
-    }
-    FT_Done_Face(face2);
-
-    FT_Done_FreeType(ft);
-    
-    // configure VAO/VBO for texture quads
-    // -----------------------------------
-    glGenVertexArrays(1, &VAOt);
-    glGenBuffers(1, &VBOt);
-    glBindVertexArray(VAOt);
-    glBindBuffer(GL_ARRAY_BUFFER, VBOt);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-
-    return 0;
-}
-
 /**
  * @brief Esta função verifica se o fighter está num estado de "estacionado" e caso esteja e a tecla de espaço for pressionada, é acionada a animação de partida.
  *
@@ -1024,11 +473,6 @@ void moverInimigos() {
             continue;
         }
 
-        // if (glm::distance(newPosition, fighter_player.position) < 10.0f) {
-        //     it = enemies.erase(it);
-        //     continue;
-        // }
-
         // Verificar se o inimigo está fora do ângulo de visão do player
         glm::vec3 toEnemy = glm::normalize(it->position - fighter_player.position);
         float dotProduct = glm::dot(fighter_player.front, toEnemy);
@@ -1052,16 +496,6 @@ void moverInimigos() {
 
         ++it;
     }
-
-    // distância minima entre os inimigos
-    // for (size_t i = 0; i < enemies.size(); ++i) {
-    //     for (size_t j = i + 1; j < enemies.size(); ++j) {
-    //         if (glm::distance(enemies[i].position, enemies[j].position) < 100.0f) {
-    //             glm::vec3 direction = glm::normalize(enemies[j].position - enemies[i].position);
-    //             enemies[j].position = enemies[i].position + direction * 100.0f;
-    //         }
-    //     }
-    // }
 }
 
 void animacaoInimigos(){
@@ -1086,7 +520,7 @@ void animacaoInimigos(){
 
         // Render text
         std::string vida = "Health: " + std::to_string(fighter_player.hp);
-        std::string pontuacaoStr = "Points: " + std::to_string(pontuacao);
+        std::string pontuacaoStr = "Score: " + std::to_string(pontuacao);
         RenderText(vida, SCR_WIDTH - 300.0f, SCR_HEIGHT - 100.0f, 1.0f, textColor, true);
         RenderText(pontuacaoStr, SCR_WIDTH - 300.0f, SCR_HEIGHT - 180.0f, 1.0f, textColor, true);
 
@@ -1094,186 +528,6 @@ void animacaoInimigos(){
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-}
-
-/**
- * @brief Esta função verifica inputs de teclas específicas e atualiza a posição e rotação do fighter com base no input. 
- * Também lida com o evento de fecho da janela quando a tecla ESC é pressionada.
- * A função também verifica se o fighter está estacionado, caso esteja, nenhum movimento ou rotação é processado.
- * 
- * Correspondência das teclas:
- * - ESC: Fecha a janela.
- * - W: Move o fighter para frente.
- * - S: Move o fighter para trás.
- * - A: Inclina o fighter para a esquerda.
- * - D: Inclina o fighter para a direita.
- */
-void processInput()
-{
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
-
-    if(gameState == 5 && glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-        gameState = 0;
-
-    if(gameState == 0 || gameState == 3 || gameState == 5)
-        return;
-
-    if(gameState == 4){
-        if(glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS){
-            restartGame();
-            gameState = 1;
-        }
-        return;
-    }
-
-    static bool cKeyPressed = false;
-    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
-        if (!cKeyPressed) {
-            if (gameState == 1)
-                gameState = 2;
-            else if (gameState == 2)
-                gameState = 1;
-            cKeyPressed = true;
-        }
-    } else {
-        cKeyPressed = false;
-    }
-
-    if(gameState == 2)
-        return;
-
-    // Toggle camera modes (free camera vs. fixed behind the player)
-    static bool vKeyPressed = false;
-    if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
-        if (!vKeyPressed) {
-            if(cameraMode == 0)
-                cameraMode = 1;
-            else if(cameraMode == 1)
-                cameraMode = 2;
-            else 
-                cameraMode = 0;
-            vKeyPressed = true;
-        }
-    } else {
-        vKeyPressed = false;
-    }
-
-    static bool fireKeyPressed = false;
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-        if (!fireKeyPressed) {
-            alSourcePlay(source2);
-            shootProjectile(fighter_player, 0);
-            fireKeyPressed = true;
-        }
-        } else {
-            fireKeyPressed = false;
-        }
-
-    if(cameraMode == 2){
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-            fighter_player.position.z -= 5.0;
-        }
-
-        else if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS){
-            fighter_player.position.z += 5.0;
-        }
-
-        return;
-    }
-
-    static float lastPressTime = 0.0f;
-
-    // Move forward with smooth acceleration
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        if (fighter_player.movementSpeed < 100.0f) {
-            fighter_player.movementSpeed += 50.0f;
-            alSourcePlay(source3);
-        }
-        lastPressTime = glfwGetTime();
-    }
-    // Move backward with smooth deceleration
-    else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        if (fighter_player.movementSpeed > 30.0f) {
-            fighter_player.movementSpeed -= 1.0f;
-        } else {
-            fighter_player.movementSpeed = 30.0f; // Minimum speed
-        }
-    }
-    else {
-        // Gradual deceleration
-        float currentTime = glfwGetTime();
-        if (currentTime - lastPressTime > 1.0f) { // 1 second delay before deceleration
-            if (fighter_player.movementSpeed > 30.0f) {
-                fighter_player.movementSpeed -= 5.0f; // Decelerate more gradually
-            } else {
-                fighter_player.movementSpeed = 30.0f; // Minimum speed
-            }
-        }
-    }
-}
-
-/**
- * @brief Esta função é chamada sempre que o rato é movido, de modo a atualizar a direção da câmera com base nesse movimento 
- * e ajusta também a direção e o vetor frontal do fighter de acordo com a câmera.
- * 
- * @param window Referência para a janela GLFW que recebeu o evento.
- * @param xpos A nova coordenada x do cursor do rato.
- * @param ypos A nova coordenada y do cursor do rato.
- */
-void mouse_callback(GLFWwindow* window, double xpos, double ypos)
-{
-    if(gameState != 1)
-        return;
-    if(cameraMode == 2)
-        return;
-
-    int width, height;
-    glfwGetWindowSize(window, &width, &height);
-
-    float xoffset = xpos - (width/2);
-    float yoffset = (height/2) - ypos;
-
-    float sensitivity = 0.005f;
-    xoffset *= sensitivity;
-    yoffset *= sensitivity;
-
-    // Update the camera's direction based on mouse input
-    camera.ProcessMouseMovement(xoffset, yoffset);
-    if (camera.Yaw > 50.0f)
-        camera.Yaw = 50.0f;
-    if (camera.Yaw < -50.0f)
-        camera.Yaw = -50.0f;
-
-    // Update the direction of the fighter_player based on the camera
-    fighter_player.front = camera.Front;
-    fighter_player.directionX = camera.Yaw;
-    fighter_player.directionY = camera.Pitch;
-
-    // Smoothly rotate the fighter based on the camera's yaw
-    const float rotationSpeed = 5.0f;
-    fighter_player.rotation -= xoffset * rotationSpeed * 0.05;
-    if (fighter_player.rotation > 45.0f) {
-        fighter_player.rotation = 45.0f;
-    } else if (fighter_player.rotation < -45.0f) {
-        fighter_player.rotation = -45.0f;
-    }
-
-    // Re-center the cursor in the middle of the window
-    glfwSetCursorPos(window, width / 2.0, height / 2.0);
-}
-
-
-/**
- * @brief Esta função é chamada sempre que um evento de scroll é detectado na janela GLFW, para ajustar o nível de zoom da câmera.
- * 
- * @param window Referência para a janela GLFW que recebeu o evento.
- * @param xoffset O deslocamento de scroll ao longo do eixo x.
- * @param yoffset O deslocamento de scroll ao longo do eixo y, usado para ajustar o nível de zoom da câmera.
- */
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
-{
-    camera.ProcessMouseScroll(yoffset);
 }
 
 /**
@@ -1363,13 +617,15 @@ void renderScene() {
     auto renderHangar = [&](glm::vec3 translation, float rotation) {
         model = glm::translate(glm::mat4(1.0f), translation);
         model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
-        lightingShader->setVec3("material.ambient", 0.3f, 0.3f, 0.3f);
-        lightingShader->setVec3("material.diffuse", 0.4f, 0.4f, 0.4f);
-        lightingShader->setVec3("material.specular", 0.6f, 0.6f, 0.6f);
-        lightingShader->setFloat("material.shininess", 25.0f);
-        lightingShader->setMat4("model", model);
-        glBindVertexArray(hangarModel.VAO);
-        glDrawArrays(GL_TRIANGLES, 0, hangarModel.vertices.size());
+        for (MaterialInfo material : hangarModel.materials) {
+            lightingShader->setVec3("material.ambient", material.ambient);
+            lightingShader->setVec3("material.diffuse", material.diffuse);
+            lightingShader->setVec3("material.specular", material.specular);
+            lightingShader->setFloat("material.shininess", material.shininess);
+            lightingShader->setMat4("model", model);
+            glBindVertexArray(hangarModel.VAO);
+            glDrawArrays(GL_TRIANGLES, 0, hangarModel.vertices.size());
+        }
     };
     renderHangar(hangarPos, 0.0f);
     renderHangar(enemyHangarPos, 180.0f);
@@ -1380,13 +636,15 @@ void renderScene() {
     model = glm::rotate(model, glm::radians(fighter_player.directionY), glm::vec3(-1.0f, 0.0f, 0.0f));
     model = glm::rotate(model, glm::radians(fighter_player.rotation), glm::vec3(0.0f, 0.0f, -1.0f));
     model = glm::scale(model, glm::vec3(35.0f));
-    lightingShader->setVec3("material.ambient", 0.2f, 0.2f, 0.2f);
-    lightingShader->setVec3("material.diffuse", 0.3f, 0.3f, 0.3f);
-    lightingShader->setVec3("material.specular", 0.5f, 0.5f, 0.5f);
-    lightingShader->setFloat("material.shininess", 32.0f);
-    lightingShader->setMat4("model", model);
-    glBindVertexArray(tieModel.VAO);
-    glDrawArrays(GL_TRIANGLES, 0, tieModel.vertices.size());
+    for(MaterialInfo material : tieModel.materials){
+        lightingShader->setVec3("material.ambient", material.ambient);
+        lightingShader->setVec3("material.diffuse", material.diffuse);
+        lightingShader->setVec3("material.specular", material.specular);
+        lightingShader->setFloat("material.shininess", material.shininess);
+        lightingShader->setMat4("model", model);
+        glBindVertexArray(tieModel.VAO);
+        glDrawArrays(GL_TRIANGLES, 0, tieModel.vertices.size());
+    }
 
     // also draw the lamp object
     lightingCubeShader->use();
@@ -1690,8 +948,8 @@ void RenderText(std::string text, float x, float y, float scale, glm::vec3 color
 
 bool isColliding(glm::vec3 projPosition, float projRadius, glm::vec3 enemyPosition, float enemyRadius) {
     float distance = glm::distance(projPosition, enemyPosition);
-    // std::cout << "Distance between projectile and enemy: " << distance << std::endl;
-    // std::cout << "Sum of radii: " << (projRadius + enemyRadius) << std::endl;
+    std::cout << "Distance between projectile and enemy: " << distance << std::endl;
+    std::cout << "Sum of radii: " << (projRadius + enemyRadius) << std::endl;
     return distance < (projRadius + enemyRadius);
 }
 
@@ -1702,16 +960,17 @@ void checkCollisions() {
         // Verifica colisões com inimigos
         if (projIt->origin == 0) { // Projétil do jogador
             for (auto enemyIt = enemies.begin(); enemyIt != enemies.end();) {
-                // std::cout << "Checking collision between projectile at (" 
-                //           << projIt->position.x << ", " << projIt->position.y << ", " << projIt->position.z 
-                //           << ") with radius " << projIt->collisionRadius 
-                //           << " and enemy at (" 
-                //           << enemyIt->position.x << ", " << enemyIt->position.y << ", " << enemyIt->position.z 
-                //           << ") with radius " << enemyIt->collisionRadius << std::endl;
+                std::cout << "Checking collision between projectile at (" 
+                          << projIt->position.x << ", " << projIt->position.y << ", " << projIt->position.z 
+                          << ") with radius " << projIt->collisionRadius 
+                          << " and enemy at (" 
+                          << enemyIt->position.x << ", " << enemyIt->position.y << ", " << enemyIt->position.z 
+                          << ") with radius " << enemyIt->collisionRadius << std::endl;
 
                 if (isColliding(projIt->position, projIt->collisionRadius, enemyIt->position, enemyIt->collisionRadius)) {
-                    // std::cout << "Collision detected between projectile and enemy" << std::endl;
+                    std::cout << "Collision detected between projectile and enemy" << std::endl;
                     enemyIt->hp -= 1; // Reduz a vida do inimigo
+                    std::cout << "Enemy HP: " << enemyIt->hp << std::endl;
 
                     if (enemyIt->hp <= 0) {
                         std::cout << "Enemy destroyed" << std::endl;
@@ -1730,14 +989,14 @@ void checkCollisions() {
             }
         } else { // Projétil do inimigo
             if (isColliding(projIt->position, projIt->collisionRadius, fighter_player.position, fighter_player.collisionRadius)) {
-                // std::cout << "Collision detected between projectile and player" << std::endl;
+                std::cout << "Collision detected between projectile and player" << std::endl;
                 fighter_player.hp -= 1; // Reduz a vida do jogador
                 collisionDetected = true;
             }
         }
 
         if (collisionDetected) {
-            // std::cout << "Projectile removed" << std::endl;
+            std::cout << "Projectile removed" << std::endl;
             projIt = projectiles.erase(projIt); // Remove o projétil que colidiu
         } else {
             ++projIt;
@@ -1800,29 +1059,6 @@ void renderProjectiles(Shader& shader) {
 
 }
 
-
-// void shootProjectile(const Fighter& fighter) {
-//     glm::vec3 projectilePosition = fighter.position + fighter.front * 5.0f;
-//     glm::vec3 direction = fighter.front;
-
-//     // Encontre o inimigo mais próximo
-//     Fighter* closestEnemy = findClosestEnemy(fighter.position);
-//     if (closestEnemy) {
-//         float distance = glm::distance(fighter.position, closestEnemy->position);
-//         float maxAutoAimDistance = 500.0f; // Defina a distância máxima para a mira automática
-
-//         if (distance < maxAutoAimDistance) {
-//             direction = glm::normalize(closestEnemy->position - fighter.position);
-//         }
-//     }
-
-//     // Adiciona um novo projétil ao vetor
-//     projectiles.emplace_back(projectilePosition, direction, 50.0f, 2.0f, 0); // Velocidade ajustada para 50.0f
-
-//     std::cout << "Projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
-// }
-
-
 void shootProjectile(const Fighter& fighter, int origin) {
     glm::vec3 projectilePosition = fighter.position + fighter.front * 5.0f;
     glm::vec3 direction = fighter.front;
@@ -1840,10 +1076,8 @@ void shootProjectile(const Fighter& fighter, int origin) {
         }
     }
 
-    // Adiciona um novo projétil ao vetor
-    projectiles.emplace_back(projectilePosition, direction, 20.0f, 2.0f, origin); // Velocidade ajustada para 50.0f
-
-    // std::cout << "Projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
+    float projRadius = 2.0f; // Defina o raio de colisão para o projétil
+    projectiles.emplace_back(projectilePosition, direction, 20.0f, projRadius, origin); // Velocidade ajustada para 20.0f
 }
 
 void updateProjectiles(float deltaTime) {
@@ -1854,38 +1088,11 @@ void updateProjectiles(float deltaTime) {
 
     // Remover projéteis que saíram dos limites
     projectiles.erase(std::remove_if(projectiles.begin(), projectiles.end(), [](const Projectile& proj) {
-        return proj.position.z > 800.0f || proj.position.z < -800.0f; // Limites arbitrários
+        return proj.position.z > 600.0f || proj.position.z < -600.0f; // Limites arbitrários
     }), projectiles.end());
 
     // std::cout << "Projectiles updated. Count: " << projectiles.size() << std::endl;
 }
-
-// void shootEnemyProjectiles(float deltaTime) {
-//     static float lastShootTime = 0.0f;
-//     float currentTime = glfwGetTime();
-
-//     // Atira a cada 2 segundos
-//     if (currentTime - lastShootTime >= 3.0f) {
-//         for (const auto& enemy : enemies) {
-//             glm::vec3 projectilePosition = enemy.position + enemy.front * 5.0f; // Posição inicial
-//             glm::vec3 projectileDirection = enemy.front;
-
-//             float distance = glm::distance(enemy.position, fighter_player.position);
-//             float maxAutoAimDistance = 500.0f; // Defina a distância máxima para a mira automática
-
-//             if (distance < maxAutoAimDistance) {
-//                 projectileDirection = glm::normalize(fighter_player.position - enemy.position);
-//             }
-
-//             // Velocidade reduzida para projéteis inimigos
-//             float projectileSpeed = 20.0f; // Ajuste conforme necessário
-//             projectiles.emplace_back(projectilePosition, projectileDirection, projectileSpeed, 2.0f, 1);
-
-//             std::cout << "Enemy projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
-//         }
-//         lastShootTime = currentTime;
-//     }
-// }
 
 void shootEnemyProjectiles(float deltaTime) {
     static float lastShootTime = 0.0f;
@@ -1894,64 +1101,30 @@ void shootEnemyProjectiles(float deltaTime) {
     // Atira a cada 3 segundos
     if (currentTime - lastShootTime >= 3.0f) {
         for (const auto& enemy : enemies) {
-            glm::vec3 projectilePosition = enemy.position + enemy.front * 5.0f; // Posição inicial
-            glm::vec3 projectileDirection = glm::normalize(fighter_player.position - enemy.position);
+            // Verificar a distância entre o inimigo e o jogador
+            float distanceToPlayer = glm::distance(enemy.position, fighter_player.position);
+            float maxShootingDistance = 600.0f; // Defina a distância máxima para atirar
 
-            // Introduzir uma variação aleatória na direção do projétil
-            float variation = 0.05f; // Ajuste conforme necessário
-            projectileDirection.x += ((rand() % 100) / 100.0f - 0.5f) * variation;
-            projectileDirection.y += ((rand() % 100) / 100.0f - 0.5f) * variation;
-            projectileDirection.z += ((rand() % 100) / 100.0f - 0.5f) * variation;
-            projectileDirection = glm::normalize(projectileDirection); // Normalizar a direção
+            if (distanceToPlayer <= maxShootingDistance) {
+                glm::vec3 projectilePosition = enemy.position + enemy.front * 5.0f; // Posição inicial
+                glm::vec3 projectileDirection = glm::normalize(fighter_player.position - enemy.position);
 
-            // Velocidade reduzida para projéteis inimigos
-            float projectileSpeed = 20.0f; // Ajuste conforme necessário
-            projectiles.emplace_back(projectilePosition, projectileDirection, projectileSpeed, 2.0f, 1);
+                // Introduzir uma variação aleatória na direção do projétil
+                float variation = 0.05f; // Ajuste conforme necessário
+                projectileDirection.x += ((rand() % 100) / 100.0f - 0.5f) * variation;
+                projectileDirection.y += ((rand() % 100) / 100.0f - 0.5f) * variation;
+                projectileDirection.z += ((rand() % 100) / 100.0f - 0.5f) * variation;
+                projectileDirection = glm::normalize(projectileDirection); // Normalizar a direção
 
-            std::cout << "Enemy projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
+                // Velocidade ajustada para projéteis inimigos
+                float projectileSpeed = 20.0f; // Ajuste conforme necessário
+                projectiles.emplace_back(projectilePosition, projectileDirection, projectileSpeed, 2.0f, 1);
+
+                std::cout << "Enemy projectile shot from position: " << projectilePosition.x << ", " << projectilePosition.y << ", " << projectilePosition.z << std::endl;
+            }
         }
         lastShootTime = currentTime;
     }
-}
-
-
-void setupBoundingBox() {
-    // Defina os vértices da bounding box
-    float boundingBoxVertices[] = {
-        // Define the vertices for the bounding box (a cube)
-        -1.0f, -1.0f, -1.0f,
-         1.0f, -1.0f, -1.0f,
-         1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-         1.0f, -1.0f,  1.0f,
-         1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-    };
-
-    // Defina os índices para desenhar as linhas da bounding box
-    unsigned int boundingBoxIndices[] = {
-        0, 1, 1, 2, 2, 3, 3, 0,
-        4, 5, 5, 6, 6, 7, 7, 4,
-        0, 4, 1, 5, 2, 6, 3, 7
-    };
-
-    glGenVertexArrays(1, &boundingBoxVAO);
-    glGenBuffers(1, &boundingBoxVBO);
-    glGenBuffers(1, &boundingBoxEBO);
-
-    glBindVertexArray(boundingBoxVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, boundingBoxVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(boundingBoxVertices), boundingBoxVertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, boundingBoxEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(boundingBoxIndices), boundingBoxIndices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    glBindVertexArray(0);
 }
 
 void createShot(float radius, float height, int segments, unsigned int& VAO, unsigned int& VBO){
@@ -2104,34 +1277,4 @@ void renderIntro(){
         scrollOffset = 0.0f; // Reset the scroll after the text has scrolled off the screen
         gameState = 0; // Change to game mode 0
     }
-}
-
-
-void setupSquare() {
-    float vertices[] = {
-        // positions        // texture coords
-        -0.5f,  0.5f, 0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f, 0.0f,  0.0f, 0.0f,
-         0.5f, -0.5f, 0.0f,  1.0f, 0.0f,
-
-        -0.5f,  0.5f, 0.0f,  0.0f, 1.0f,
-         0.5f, -0.5f, 0.0f,  1.0f, 0.0f,
-         0.5f,  0.5f, 0.0f,  1.0f, 1.0f
-    };
-
-    glGenVertexArrays(1, &exVAO);
-    glGenBuffers(1, &exVBO);
-
-    glBindVertexArray(exVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, exVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
 }
