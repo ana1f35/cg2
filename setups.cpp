@@ -1,9 +1,14 @@
 #include "headers/setups.h"
 
-// Função que configura o skybox
+/**
+ * @brief Função utilizada para configurar o skybox.
+ * 
+ * Define os vértices do skybox e carrega-os para a GPU.
+ * 
+ */
 void setupSkybox() {
-    float skyboxVertices[] = {
-        // positions          
+    // Definir os vértices do skybox
+    float skyboxVertices[] = {        
         -700.0f,  700.0f, -700.0f,
         -700.0f, -700.0f, -700.0f,
          700.0f, -700.0f, -700.0f,
@@ -47,6 +52,7 @@ void setupSkybox() {
          700.0f, -700.0f,  700.0f
     };
 
+    // Gerar e carregar os vértices do skybox para a GPU
     glGenVertexArrays(1, &skyboxVAO);
     glGenBuffers(1, &skyboxVBO);
     glBindVertexArray(skyboxVAO);

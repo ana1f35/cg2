@@ -63,7 +63,7 @@ void renderScene() {
     lightingShader->use();
 
 
-    // Activate lightingPTexShader and set its uniforms
+    // Ativar o shader com texturas e definir os seus uniformes 
     lightsActivate(lightingPTexShader, view, projection);
 
     glm::mat4 model = glm::mat4(1.0f);
@@ -77,10 +77,10 @@ void renderScene() {
         model = glm::scale(model, glm::vec3(3.0f));
         lightingPTexShader->setFloat("material.shininess", 32.0f);
         lightingPTexShader->setMat4("model", model);
-        renderTextures(&xwingModel);
+        renderTextures(&xwingModel); //renderiza o modelo do inimigo com texturas
     }
 
-    // Activate lightingShader and set its uniforms
+    // Activar o shader basico e definir os seus uniformes
     lightsActivate(lightingShader, view, projection);
 
     // Render hangars with lightingShader
@@ -193,6 +193,14 @@ void renderScene() {
     desenhaAlvo();
 }
 
+
+/**
+ * @brief Esta funcção renderiza as texturas de um modelo.
+ * Começa por ligar o VAO do modelo e verificar se este tem materiais. Se tiver, aplica as texturas de acordo com o material.
+ * Se não tiver, usa valores por defeito. No final, desenha o modelo.
+ * 
+ * @param Tmodel Ponteiro para o modelo a ser renderizado.
+ */
 void renderTextures(Model *Tmodel){
     glBindVertexArray(Tmodel->VAO);
     if (!Tmodel->materials.empty()) {
@@ -232,7 +240,6 @@ void renderTextures(Model *Tmodel){
                 }
             }
         }
-        // If no materials were applied, use default rendering
         if (!anyMaterialApplied) {
             lightingPTexShader->setBool("hasDiffuseTexture", false);
             lightingPTexShader->setBool("hasSpecularTexture", false);
@@ -241,7 +248,6 @@ void renderTextures(Model *Tmodel){
             glDrawArrays(GL_TRIANGLES, 0, Tmodel->vertices.size());
         }
     } else {
-        // No materials, use default values
         lightingPTexShader->setBool("hasDiffuseTexture", false);
         lightingPTexShader->setBool("hasSpecularTexture", false);
         lightingPTexShader->setBool("hasNormalTexture", false);
@@ -260,6 +266,10 @@ void renderTextures(Model *Tmodel){
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+
+/**
+ * @brief Esta função renderiza as luzes da cena.
+ */
 void lightsActivate(Shader *ls, glm::mat4 view, glm::mat4 projection){
     ls->use();
     ls->setMat4("projection", projection);

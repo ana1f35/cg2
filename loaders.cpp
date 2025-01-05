@@ -10,11 +10,7 @@
  * Depois configura os objetos de array e buffer de vértices do OpenGL.
  * 
  * @param filePath Caminho para o ficheiro .obj a ser carregado.
- * @param vertices Referência para o vetor onde os dados dos vértices serão guardados.
- * @param normals Referência para o vetor onde os dados das normais serão guardados.
- * @param VAO Referência para o VAO a ser gerado.
- * @param VBO Referência para o VBO a ser gerado.
- * @param NBO Referência para o NBO a ser gerado.
+ * @param model Referência para a estrutura Model onde será armazenado o modelo carregado.
  * @param centerModel Bool indicando se o modelo deve ou não ser centralizado.
  * @return int - Retorna 0 se foi bem sucedido, ou -1 se ocorreu erro ao carregar o ficheiro.
  */
@@ -26,20 +22,16 @@ int loadModel(const std::string& filePath, Model& model, bool centerModel) {
     std::string mtlBaseDir = filePath.substr(0, filePath.find_last_of('/')) + "/";
     model.name = (filePath.substr(filePath.find_last_of('/') + 1)).substr(0, (filePath.substr(filePath.find_last_of('/') + 1)).find_last_of('.'));
 
-    // Load the .obj file using TinyObjLoader
+    // Carregar o ficheiro .obj através do TinyObjLoader
     if (!tinyobj::LoadObj(&attrib, &shapes, &tinyMaterials, &err, filePath.c_str(), mtlBaseDir.c_str())) {
         std::cout << "Failed to load OBJ file: " << err << std::endl;
         return -1;
     }
 
-    if (!warn.empty()) {
-        std::cout << "Warning: " << warn << std::endl;
-    }
-
     glm::vec3 center(0.0f);
     int totalVertices = 0;
 
-    // Extract vertices, normals, and texture coordinates
+    // Extrair os vertices, normais e coordenadas de textura do ficheiro .obj
     for (const auto& shape : shapes) {
         for (const auto& index : shape.mesh.indices) {
             glm::vec3 vertex(
@@ -68,6 +60,7 @@ int loadModel(const std::string& filePath, Model& model, bool centerModel) {
         }
     }
 
+    // Centralizar o modelo
     if (centerModel) {
         center /= totalVertices;
         for (auto& vertex : model.vertices) {
@@ -75,6 +68,7 @@ int loadModel(const std::string& filePath, Model& model, bool centerModel) {
         }
     }
 
+    // Configurar os objetos de array e buffer de vértices do OpenGL
     glGenVertexArrays(1, &model.VAO);
     glGenBuffers(1, &model.VBO);
     glGenBuffers(1, &model.NBO);
@@ -96,7 +90,7 @@ int loadModel(const std::string& filePath, Model& model, bool centerModel) {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
     glEnableVertexAttribArray(2);
 
-    // Load materials if available
+    // Carregar os materiais do ficheiro .mtl
     if (!tinyMaterials.empty()) {
         std::string mtlFilePath = mtlBaseDir + model.name + ".mtl";
         std::cout << "Loading materials from: " << mtlFilePath << std::endl;
@@ -108,8 +102,15 @@ int loadModel(const std::string& filePath, Model& model, bool centerModel) {
     return 0;
 }
 
-// Function to load materials and textures from MTL file
+/**
+ * @brief Função utilizada para carregar os materiais de um ficheiro .mtl e as respetivas texturas.
+ * A função lê o ficheiro .mtl linha a linha e armazena as informações dos materiais num vetor de MaterialInfo.
+ * 
+ * @param mtlFilePath Caminho para o ficheiro .mtl a ser carregado.
+ * @param materials Vetor de MaterialInfo onde serão armazenados os materiais carregados.
+ */
 void loadMaterials(const std::string& mtlFilePath, std::vector<MaterialInfo>& materials) {
+    // Abrir o ficheiro .mtl
     std::ifstream mtlFile(mtlFilePath);
     if (!mtlFile) {
         std::cerr << "Failed to open MTL file: " << mtlFilePath << std::endl;
@@ -122,6 +123,7 @@ void loadMaterials(const std::string& mtlFilePath, std::vector<MaterialInfo>& ma
         std::istringstream iss(line);
         std::string prefix;
         iss >> prefix;
+        // Processar cada linha do ficheiro .mtl
         if (prefix == "newmtl") {
             if (!material.name.empty()) {
                 materials.push_back(material);
@@ -157,7 +159,7 @@ void loadMaterials(const std::string& mtlFilePath, std::vector<MaterialInfo>& ma
         materials.push_back(material);
     }
 
-    // Load textures if available
+    // Carregar as texturas dos materiais do ficheiro .mtl
     for (auto& material : materials) {
         if (!material.diffuse_texname.empty()) {
             std::string texPath = mtlFilePath.substr(0, mtlFilePath.find_last_of('/')) + "/" + material.diffuse_texname;
@@ -177,13 +179,23 @@ void loadMaterials(const std::string& mtlFilePath, std::vector<MaterialInfo>& ma
     }
 }
 
-unsigned int loadTexture(const char* path) {
-    // Add this before loading texture
-    stbi_set_flip_vertically_on_load(true);  // OpenGL expects texture coordinates to start from bottom-left
 
+/**
+ * @brief Função utilizada para carregar uma textura a partir de um ficheiro de imagem usando a biblioteca STB Image.
+ * A função carrega a textura, gera um ID para a mesma e configura os parâmetros da textura.
+ * 
+ * @param path Caminho para o ficheiro de imagem a ser carregado.
+ * @return unsigned int - Retorna o ID da textura carregada.
+ */
+unsigned int loadTexture(const char* path) {
+    //rotação da textura para que a imagem seja carregada corretamente
+    stbi_set_flip_vertically_on_load(true);
+
+    //Aloca um ID para a textura
     unsigned int textureID;
     glGenTextures(1, &textureID);
 
+    //Carrega a textura
     int width, height, nrComponents;
     unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
     if (data) {
@@ -199,12 +211,13 @@ unsigned int loadTexture(const char* path) {
         glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
 
-        // Set texture parameters
+        //Define os parâmetros da textura
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+        //Liberta a memória da textura
         stbi_image_free(data);
     }
     else {
@@ -215,6 +228,10 @@ unsigned int loadTexture(const char* path) {
     return textureID;
 }
 
+
+/**
+ * @brief Função utilizada para carregar um cubo de luz para ser usado na cena.
+ */
 void loadLuz(){
     float vertices[] = {
         -1.5f, -0.1f, -1.5f, 
@@ -272,6 +289,11 @@ void loadLuz(){
     glEnableVertexAttribArray(0);
 }
 
+/**
+ * @brief Função utilizada para carregar texto a partir de um ficheiro de fonte TrueType.
+ * 
+ * @return int - Retorna 0 se foi bem sucedido, ou -1 se ocorreu erro ao carregar o ficheiro.
+ */
 int loadText(){
     // FreeType
     // --------
@@ -422,6 +444,9 @@ int loadText(){
 
 /**
  * @brief Função que carrega as varias texturas para o skybox.
+ * A função carrega as 6 imagens para o criar o skybox, cria um cubemap e configura os parâmetros da textura.
+ * 
+ * @param faces Vetor de strings com os caminhos para as texturas do skybox.
  */
 unsigned int loadCubemap(std::vector<std::string> faces) {
     unsigned int textureID;

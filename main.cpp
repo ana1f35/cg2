@@ -100,7 +100,7 @@ unsigned int boundingBoxVBO, boundingBoxEBO, boundingBoxVAO;
 unsigned int VAOProjectile, numProjectileVertices, VBOProjectile;
 unsigned int exVAO, exVBO;
 
-// Skybox texture
+// Textura do skybox
 unsigned int cubemapTexture; 
 std::vector<std::string> faces = {
     "models/sky/skyboxxa.png",
@@ -179,6 +179,7 @@ int main() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    // Carergar modelos
     if(loadModel("models/xwing/xwing.obj", xwingModel, true) == -1)
         return -1;
     if (loadModel("models/hangar/hangar.obj", hangarModel, false) == -1)
@@ -197,17 +198,16 @@ int main() {
     lightingPTexShader = new Shader("shaders/lightTex.vs", "shaders/lightTex.fs");
     explosionShader = new Shader("shaders/explosion.vs", "shaders/explosion.fs");
 
-
+    // Carregar textura da explosão
     explosionTextureID = loadTexture("models/explosion.png");
 
     setupSquare();
     
-    // Setup skybox and load texture
+    // Setup da skybox
     setupSkybox();
     setupBoundingBox();
     cubemapTexture = loadCubemap(faces);
-    
-    // Set skybox shader uniforms
+   
     skyboxShader->use();
     skyboxShader->setInt("skybox", 0);
 
@@ -330,7 +330,7 @@ int main() {
         glfwPollEvents();
     }
     
-    // De-allocate resources
+    // Libertar recursos
     delete skyboxShader;
     glDeleteVertexArrays(1, &skyboxVAO);
     glDeleteBuffers(1, &skyboxVBO);
