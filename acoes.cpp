@@ -1,6 +1,8 @@
 #include "headers/acoes.h"
 
-
+/**
+ * @brief Função que move automaticamente as naves inimigas em direção ao jogador.
+ */
 void moverInimigos() {
     for (auto it = enemies.begin(); it != enemies.end(); ) {
         // mover em frente
@@ -9,8 +11,8 @@ void moverInimigos() {
         glm::vec3 newPosition = it->position + direction * it->movementSpeed * 0.5f;
         it->position = newPosition;
 
-        // Se colidiu morreu 
-        // Verificar colisão com a nave principal
+        // Verificar colisão com a nave principal, caso aconteça a nave inimiga perde um ponto de vida
+        // sendo destruída, e a nave principal perde um ponto de vida
         if (isColliding(it->position, it->collisionRadius, fighter_player.position, fighter_player.collisionRadius)) {
             fighter_player.hp -= 1; // Reduzir 1 HP da nave principal
             it = enemies.erase(it); // Destruir a nave inimiga
@@ -18,6 +20,7 @@ void moverInimigos() {
         }
 
         // Verificar se o inimigo está fora do ângulo de visão do player
+        // caso esteja deverá ser apagado de cena
         glm::vec3 toEnemy = glm::normalize(it->position - fighter_player.position);
         float dotProduct = glm::dot(fighter_player.front, toEnemy);
         float angleToPlayer = glm::degrees(glm::acos(dotProduct));
@@ -26,7 +29,7 @@ void moverInimigos() {
             continue;
         }
 
-        // rodar na direção correta
+        // rodar a nave inimiga na direção correta: em direção ao jogador
         direction = glm::normalize(fighter_player.position - it->position);
         float targetYaw = glm::degrees(atan2(direction.z, -direction.x));
         float targetPitch = glm::degrees(asin(-direction.y));
@@ -43,9 +46,8 @@ void moverInimigos() {
 }
 
 /**
- * @brief Esta função verifica se o fighter está num estado de "estacionado" e caso esteja e a tecla de espaço for pressionada, é acionada a animação de partida.
+ * @brief Esta função verifica se o jogo está no estado inicial e caso esteja e a tecla de espaço for pressionada, é acionada a animação de partida.
  *
- * @param lightingShader Referência ao shader usado para efeitos de iluminação.
  * @return bool - true se tiver sido realizada a partida, ou false caso contrário.
  */
 bool checkStart() {
@@ -59,10 +61,8 @@ bool checkStart() {
 }
 
 /**
- * @brief Esta função anima a posição vertical do fighter da sua posição atual para uma altura de 20.0 unidades, esta animação dura 2 segundos. 
+ * @brief Esta função anima a posição vertical da nave da sua posição atual para uma altura de 20.0 unidades. 
  * Durante a animação, a cena é continuamente renderizada e os buffers da janela são trocados para exibir a posição atualizada.
- * 
- * @param lightingShader Referência ao shader usado para iluminação na cena.
  */
 void animacaoSaida(){
     float targetY = 20.0f;
@@ -81,6 +81,10 @@ void animacaoSaida(){
     fighter_player.position.y = targetY;
 }
 
+/**
+ * @brief Esta função anima a posição vertical da nave da sua posição atual para uma altura de 40.0 unidades. 
+ * Durante a animação, a cena é continuamente renderizada e os buffers da janela são trocados para exibir a posição atualizada.
+ */
 void animacaoInimigos(){
     float targetY = 40.0f;
     float speed = 0.5f; 
@@ -291,6 +295,9 @@ Fighter* findClosestEnemy(const glm::vec3& playerPosition) {
     return closestEnemy;
 }
 
+/**
+ * @brief Esta permite reiniciar os valores das variaveis globais permitindo reiniciar o jogo sempre que este termina.
+ */
 void restartGame(){
     cameraMode = 0;
     pontuacao = 0;
