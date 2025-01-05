@@ -9,6 +9,7 @@
 #include "headers/audio.h"
 #include "headers/render.h"
 #include "headers/acoes.h"
+#include "headers/texto.h"
 
 #include FT_FREETYPE_H
 
@@ -16,14 +17,17 @@
 unsigned int SCR_WIDTH = 800;
 unsigned int SCR_HEIGHT = 600;
 GLFWwindow* window;
-std::map<std::string, std::vector<MaterialInfo>> modelMaterials;
-std::vector<Explosion> explosions;
-unsigned int explosionTextureID;
 
+// Modelos
 Model hangarModel;
 Model tieModel;
 Model xwingModel;
 
+std::map<std::string, std::vector<MaterialInfo>> modelMaterials;
+std::vector<Explosion> explosions;
+unsigned int explosionTextureID;
+
+// Shaders
 Shader* skyboxShader;
 Shader* lightingShader;
 Shader* lightingCubeShader;
@@ -32,14 +36,16 @@ Shader* hitBoxShader;
 Shader* explosionShader;
 Shader* lightingPTexShader;
 
+// Variáveis de jogo
 unsigned int cameraMode = 0;
 unsigned int gameState = 5;
 int pontuacao = 0;
 
+// Coordenadas dos dois hangares
 glm::vec3 hangarPos(0.0f, 0.0f, 0.0f);
 glm::vec3 enemyHangarPos(2000.0f, 0.0f, 0.0f);
 
-// Lighting
+// Coordenadas das diferentes fontes de luz
 glm::vec3 spotLightPositions[] = {
     glm::vec3(-10.0f, 70.0f, 0.0f),
     glm::vec3(-10.0f, 70.0f, -110.0f),
@@ -60,6 +66,7 @@ glm::vec3 pointLightPositions[] = {
     glm::vec3(1600.0f, 200.0f, 100.0f),
     glm::vec3(1000.0f, 200.0f, -100.0f)
 };
+// Diferentes cores de luz
 glm::vec3 starLightColor(0.7f, 0.8f, 1.0f);
 glm::vec3 pointStarLightColor(0.1f, 0.2f, 1.0f);
 glm::vec3 redLightColor(0.8f, 0.0f, 0.0f);
@@ -71,6 +78,7 @@ float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
 
+// Naves
 Fighter fighter_player(glm::vec3(43.2f, 54.0f, -33.0f), camera.Front, 0.0f, camera.Yaw, camera.Pitch, 30.0f, 3, 10.0f);
 std::vector<Fighter> enemies = {
     Fighter(glm::vec3(750.0f, 50.0f, -90.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 4.0f, 1, 10.0f),
@@ -81,6 +89,7 @@ std::vector<Fighter> enemies = {
     Fighter(glm::vec3(2100.0f, 100.0f, 200.0f), -fighter_player.front, 0.0f, camera.Yaw, camera.Pitch, 5.0f, 1, 10.0f)
 };
 
+// Projeteis
 std::vector<Projectile> projectiles;
 
 // Vertex data
@@ -111,10 +120,12 @@ std::vector<std::string> faces = {
     "models/sky/skyboxzb.png"
 };
 
+// Variáveis para o texto
 std::map<GLchar, Character> Characters, Characters2;
 unsigned int VAOt, VBOt;
 glm::vec3 textColor = glm::vec3(255.0f / 255.0f, 232.0f / 255.0f, 31.0f / 255.0f);
 
+// Variáveis para os efeitos sonoros
 ALuint buffer, source, buffer2, source2, buffer3, source3, buffer4, source4;
 ALCdevice* device;
 ALCcontext* context;
@@ -133,15 +144,16 @@ ALCcontext* context;
  * @return int - Retorna 0 se foi bem sucedido, ou -1 se ocorreu algum erro.
  */
 int main() {
-    // Initialize and configure GLFW
+    // Inicialização e configuração do GLFW
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    // Create GLFW window
+    // Criação da janela GLFW no monitor principal
     GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = glfwGetVideoMode(primaryMonitor);
+    // Esta janela terá tamanho correspondente ao monitor de modo a abrir em tela cheia
     SCR_WIDTH = mode->width;
     SCR_HEIGHT = mode->height;
     window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "StarWars", primaryMonitor, NULL);
@@ -153,7 +165,7 @@ int main() {
     }
 
     glfwMakeContextCurrent(window);
-    // Create a 1x1 black pixel cursor
+    // Configuração do cursor para que este não seja perceptivel
     unsigned char pixels[4] = { 0, 0, 0, 255 };
     GLFWimage image;
     image.width = 1;
@@ -161,19 +173,17 @@ int main() {
     image.pixels = pixels;
     GLFWcursor* cursor = glfwCreateCursor(&image, 0, 0);
     glfwSetCursor(window, cursor);
-    glfwSetCursorPos(window, SCR_WIDTH/2, SCR_HEIGHT/2); // Set the initial cursor position
-
+    glfwSetCursorPos(window, SCR_WIDTH/2, SCR_HEIGHT/2);
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
 
-
-    // Load OpenGL function pointers using GLAD
+    // Carregar ponteiros de função OpenGL usando o GLAD
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
-    // Configure global OpenGL state
+    // Configurar o estado global do OpenGL
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE); 
     glEnable(GL_BLEND);
@@ -189,7 +199,7 @@ int main() {
     loadLuz();
     loadText();
 
-    // Build and compile shaders
+    // Construir e compilar os shaders
     lightingShader = new Shader("shaders/light.vs", "shaders/light.fs");
     lightingCubeShader = new Shader("shaders/lamp.vs", "shaders/lamp.fs");
     textShader = new Shader("shaders/text.vs", "shaders/text.fs");
@@ -211,6 +221,7 @@ int main() {
     skyboxShader->use();
     skyboxShader->setInt("skybox", 0);
 
+    // Configuração inicial da posição da camera, para a perspetiva de terceira pessoa
     glm::vec3 cameraOffset(0.0f, 10.0f, 60.0f);
     camera.Position = fighter_player.position - fighter_player.front * cameraOffset.z + glm::vec3(0.0f, cameraOffset.y, 0.0f);
 
@@ -220,15 +231,17 @@ int main() {
     // Render loop
     while (!glfwWindowShouldClose(window))
     {
-        // Loop the audio
+        // De modo a que a música de fundo nunca pare é necessário reproduzir o audio assim que este termina
         ALint state;
         alGetSourcei(source, AL_SOURCE_STATE, &state);
         if (state != AL_PLAYING) {
             alSourcePlay(source);
         }
 
+        // Processar entradas do teclado
         processInput();
 
+        // Caso o jogo esteja no modo inicial deverá ser renderizada apenas a tela de introdução
         if(gameState == 5){
             renderIntro();
             glfwSwapBuffers(window);
@@ -236,23 +249,18 @@ int main() {
             continue;
         }
 
+        // Em qualquer outro estado do jogo deverá ser renderizada a cena do jogo
         renderScene();
 
+        
         if(gameState == 0){
-            const std::string titulo = "- War of StArs -";
-            const std::string iniciar = "Press SPACE To Start";
-            float textWidth2 = titulo.length() * 42.0f; 
-            RenderText(titulo, (SCR_WIDTH - textWidth2) / 2.0f, SCR_HEIGHT / 2.0f + 50.0f, 1.0f, textColor, false);
-            float textWidth = iniciar.length() * 25.0f; 
-            RenderText(iniciar, (SCR_WIDTH - textWidth) / 2.0f, SCR_HEIGHT / 2.0f - 50.0f, 1.0f, textColor, true);
+            textoInicio();
             checkStart();
         }
-        // Durante o jogo mostra: vida e pontuação
+        
+        // Além disse deverão ser movidos os inimigos
         else if(gameState == 1){
-            std::string vida = "Health: " + std::to_string(fighter_player.hp);
-            std::string pontuacaoStr = "Score: " + std::to_string(pontuacao);
-            RenderText(vida, SCR_WIDTH - 300.0f, SCR_HEIGHT - 100.0f, 1.0f, textColor, true);
-            RenderText(pontuacaoStr, SCR_WIDTH - 300.0f, SCR_HEIGHT - 180.0f, 1.0f, textColor, true);
+            textoDurante();
             moverInimigos();
 
             // o jogo termina se o player ficou sem vida, ou se já chegou ao hangar inimigo
@@ -286,43 +294,11 @@ int main() {
         }
         // Em pausa (controlos)
         else if(gameState == 2){
-            const std::string controlsTitle = "Game Controls";
-            const std::string controlsText1 = "W - Increase Speed";
-            const std::string controlsText2 = "S - Decrease Speed";
-            const std::string controlsText3 = "Q - Attack";
-            const std::string controlsText4 = "V - Toggle Camera View";
-            const std::string controlsText6 = "ESC - Exit Game";
-            const std::string controlsText7 = "C - Close Controls Menu";
-
-            float titleWidth = controlsTitle.length() * 48.0f;
-            RenderText(controlsTitle, (SCR_WIDTH - titleWidth) / 2.0f, SCR_HEIGHT / 2.0f + 380.0f, 1.0f, textColor, false);
-            float textWidth1 = controlsText1.length() * 25.0f;
-            RenderText(controlsText1, (SCR_WIDTH - textWidth1) / 2.0f, SCR_HEIGHT / 2.0f + 160.0f, 1.0f, textColor, true);
-            float textWidth2 = controlsText2.length() * 25.0f;
-            RenderText(controlsText2, (SCR_WIDTH - textWidth2) / 2.0f, SCR_HEIGHT / 2.0f + 80.0f, 1.0f, textColor, true);
-            float textWidth3 = controlsText3.length() * 25.0f;
-            RenderText(controlsText3, (SCR_WIDTH - textWidth3) / 2.0f, SCR_HEIGHT / 2.0f, 1.0f, textColor, true);
-            float textWidth4 = controlsText4.length() * 25.0f;
-            RenderText(controlsText4, (SCR_WIDTH - textWidth4) / 2.0f, SCR_HEIGHT / 2.0f - 80.0f, 1.0f, textColor, true);
-            float textWidth6 = controlsText6.length() * 25.0f;
-            RenderText(controlsText6, (SCR_WIDTH - textWidth6) / 2.0f, SCR_HEIGHT / 2.0f - 250.0f, 1.0f,  textColor, true);
-            float textWidth7 = controlsText7.length() * 25.0f;
-            RenderText(controlsText7, (SCR_WIDTH - textWidth7) / 2.0f, SCR_HEIGHT / 2.0f - 350.0f, 1.0f, textColor, true);
+            textoPausa();
         }
         // Terminado
         else if(gameState == 4){
-            std::string gameOver = "Game over";
-            std::string finalScore = "Final Score: " + std::to_string(pontuacao);
-            std::string finalHealth = "HP Left: " + std::to_string(fighter_player.hp);
-            std::string restart = "Press SPACE To Restart";
-            float gameOverWidth = gameOver.length() * 52.0f;
-            RenderText(gameOver, (SCR_WIDTH - gameOverWidth) / 2.0f, SCR_HEIGHT / 2.0f + 100.0f, 1.0f, textColor, false);
-            float scoreWidth = finalScore.length() * 25.0f;
-            RenderText(finalScore, (SCR_WIDTH - scoreWidth) / 2.0f, SCR_HEIGHT / 2.0f, 1.0f, textColor, true);
-            float healthWidth = finalHealth.length() * 25.0f;
-            RenderText(finalHealth, (SCR_WIDTH - healthWidth) / 2.0f, SCR_HEIGHT / 2.0f - 100.0f, 1.0f, textColor, true);
-            float restartWidth = restart.length() * 25.0f;
-            RenderText(restart, (SCR_WIDTH - restartWidth) / 2.0f, SCR_HEIGHT / 2.0f - 200.0f, 1.0f, textColor, true);
+            textoFinal();
         }
         
         // Swap buffers and poll IO events
