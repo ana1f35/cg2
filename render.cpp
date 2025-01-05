@@ -2,11 +2,8 @@
 
 /**
  * @brief Esta função renderiza a cena com iluminação e os objetos.
- * Começa por limpar a tela, configurar a posição da câmera e configurar o shader de iluminação. Depois renderiza os dois hangares e o fighter 
- * com a respetiva configuração de iluminação. 
- * Nesta função é também determinada a fonte de luz mais próxima do fighter e ajusta a sua iluminação de acordo.
- * 
- * @param lightingShader Referência ao programa de shader usado para iluminação.
+ * Começa por limpar a tela, configurar a posição da câmera e configurar o shader de iluminação. 
+ * .
  */
 void renderScene() {
     // Clear the screen

@@ -277,7 +277,6 @@ void loadLuz(){
         -1.5f,  0.1f, -1.5f, 
     };
 
-    // Remove the re-declaration of lightCubeVAO
     glGenVertexArrays(1, &lightCubeVAO);
     glBindVertexArray(lightCubeVAO);
 
