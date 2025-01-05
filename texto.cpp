@@ -1,6 +1,10 @@
 #include "headers/texto.h"
 
-// Caso o jogo esteja em estado inicial deverá ser renderizado o titulo do jogo e a instrução de inciar
+/**
+ * @brief Esta função inicializa strings para serem renderizadas
+ * 
+ * Caso o jogo esteja em estado inicial deverá ser renderizado o titulo do jogo e a instrução de inciar.
+ */
 void textoInicio(){
     const std::string titulo = "- War of StArs -";
     const std::string iniciar = "Press SPACE To Start";
@@ -12,7 +16,11 @@ void textoInicio(){
     return;
 }
 
-// Durante o jogo será mostrada a pontuação e os pontos de vida atuais
+/**
+ * @brief Esta função inicializa strings para serem renderizadas
+ * 
+ * Durante o jogo será mostrada a pontuação e os pontos de vida atuais.
+ */
 void textoDurante(){
     std::string vida = "Health: " + std::to_string(fighter_player.hp);
     std::string pontuacaoStr = "Score: " + std::to_string(pontuacao);
@@ -22,6 +30,11 @@ void textoDurante(){
     return;
 }
 
+/**
+ * @brief Esta função inicializa strings para serem renderizadas
+ * 
+ * Permite indicar ao jogador os controlos do jogo.
+ */
 void textoPausa(){
     const std::string controlsTitle = "Game Controls";
     const std::string controlsText1 = "W - Increase Speed";
@@ -49,6 +62,11 @@ void textoPausa(){
     return;  
 }
 
+/**
+ * @brief Esta função inicializa strings para serem renderizadas
+ * 
+ * No final do jogo deverá ser apresentada a pontuação final e os pontos de vida restantes.
+ */
 void textoFinal(){
     std::string gameOver = "Game over";
     std::string finalScore = "Final Score: " + std::to_string(pontuacao);
